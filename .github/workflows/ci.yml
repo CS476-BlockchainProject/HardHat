@@ -1,4 +1,3 @@
-# .github/workflows/ci.yml
 name: Hardhat CI & Deploy
 
 on:
@@ -18,10 +17,8 @@ jobs:
     env:
       HARDHAT_NETWORK: hardhat
       NODE_OPTIONS: --test-reporter=spec
-      # Expose to Hardhat config (compile/test won't need them, deploy will)
       RPC_URL: ${{ secrets.RPC_URL }}
       PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-      # optional if your RPC needs it; use Actions "Variables" if non-secret:
       CHAIN_ID: ${{ vars.CHAIN_ID }}
 
     steps:
@@ -29,7 +26,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '22.x'               # Hardhat v3+ wants Node 22 LTS
+          node-version: '22.x'
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
@@ -38,12 +35,12 @@ jobs:
 
       - name: Compile
         run: npx hardhat compile
+        
+      # TS + ESM tests using tsx
+      - name: Run node:test (TypeScript, ESM via tsx)
+        run: npx -y tsx --test "test/**/*.ts" "test/*.ts"
 
-      # TS + ESM tests (your Counter test)
-      - name: Run node:test (TypeScript, ESM)
-        run: node --loader ts-node/esm --test "test/**/*.ts" "test/*.ts"
-
-      # Fail early if secrets missing on main
+      # Fail fast if deploy secrets missing on main
       - name: Verify deploy env
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
