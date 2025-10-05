@@ -36,9 +36,9 @@ jobs:
       - name: Compile
         run: npx hardhat compile
         
-      # TS + ESM tests using tsx
-      - name: Run node:test (TypeScript, ESM via tsx)
-        run: npx -y tsx --test "test/**/*.ts" "test/*.ts"
+      # Primary tests: Hardhat (Mocha)
+      - name: Run tests
+        run: npx hardhat test
 
       # Fail fast if deploy secrets missing on main
       - name: Verify deploy env
