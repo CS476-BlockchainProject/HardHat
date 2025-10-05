@@ -24,8 +24,8 @@ const config: HardhatUserConfig = {
     // Used only by the deploy step in CI
     didlab: {
       type: "http",
-      url: RPC_URL,                       // must be set by env/secret in CI
-      accounts: PRIVATE_KEY ? [PRIVATE_KEY] : undefined,
+      url: "env:RPC_URL",                      // must be set by env/secret in CI
+      accounts: ["env:PRIVATE_KEY"],
       chainId: CHAIN_ID,                
     },
   },
