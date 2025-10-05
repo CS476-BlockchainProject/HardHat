@@ -17,10 +17,13 @@ const config: HardhatUserConfig = {
   },
   defaultNetwork: "hardhat",
   networks: {
-    hardhat: {},
+    hardhat: {
+      type: "edr-simulated"
+    },
 
     // Used only by the deploy step in CI
     didlab: {
+      type: "http",
       url: RPC_URL,                       // must be set by env/secret in CI
       accounts: PRIVATE_KEY ? [PRIVATE_KEY] : undefined,
       chainId: CHAIN_ID,                
