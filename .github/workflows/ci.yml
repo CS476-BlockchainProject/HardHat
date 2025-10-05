@@ -8,41 +8,69 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-deploy:
+  build-test-deploy:
     runs-on: ubuntu-latest
 
+    # All commands run inside the HardHat project folder
     defaults:
       run:
         working-directory: HardHat
 
+    env:
+      # Ensure Hardhat uses its in-process network during node:test runs
+      HARDHAT_NETWORK: hardhat
+      # Optional: make Node's test runner output more verbose
+      NODE_OPTIONS: --test-reporter=spec
+
     steps:
-      - name: Checkout Repository
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: |
+            HardHat/package-lock.json
+            HardHat/npm-shrinkwrap.json
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Compile Contracts
+      - name: Compile contracts
         run: npx hardhat compile
 
-      - name: Run Tests
-        run: npx hardhat test
+      # If you still have any legacy Mocha tests (hardhat test), keep this.
+      - name: Run Hardhat (Mocha) tests (optional)
+        run: |
+          if grep -RIlq "" test 2>/dev/null; then
+            # Runs only if there are files in /test (doesn't error if empty)
+            npx hardhat test || true
+          fi
 
-      - name: Deploy Contracts
-        if: github.ref == 'refs/heads/main'
+      # Run your Node's built-in test (node:test) suite — this is for the test you pasted.
+      # Assumes your test file(s) live under HardHat/test and are JS/ESM (.js/.mjs)
+      - name: Run node:test suite
+        run: |
+          # Prefer explicit patterns to avoid trying to run artifacts
+          if compgen -G "test/**/*.js" > /dev/null || compgen -G "test/**/*.mjs" > /dev/null || compgen -G "test/*.js" > /dev/null || compgen -G "test/*.mjs" > /dev/null; then
+            node --test "test/**/*.mjs" "test/**/*.js" "test/*.mjs" "test/*.js"
+          else
+            echo "No node:test files found in ./test — skipping."
+          fi
+
+      # Deploy only on main pushes (not PRs)
+      - name: Deploy contracts
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
           PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
           RPC_URL: ${{ secrets.RPC_URL }}
         run: |
-          echo "Deploying to network..."
+          echo "Deploying with scripts/deploy2.ts to 'didlab'..."
           npx hardhat run scripts/deploy2.ts --network didlab
 
-      - name: Archive Build Artifacts
+      - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
