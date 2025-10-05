@@ -1,13 +1,22 @@
-import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+// Ensure Hardhat config & plugins are loaded when running with node:test
+import "hardhat/register";
 
+import assert from "node:assert/strict";
+import { describe, it, before } from "node:test";
 import { network } from "hardhat";
 
-describe("Counter", async function () {
-  const { viem } = await network.connect();
-  const publicClient = await viem.getPublicClient();
+describe("Counter", () => {
+  let viem: Awaited<ReturnType<typeof network.connect>>["viem"];
+  let publicClient: Awaited<ReturnType<NonNullable<typeof viem>["getPublicClient"]>>;
 
-  it("Should emit the Increment event when calling the inc() function", async function () {
+  // Connect once for the suite
+  before(async () => {
+    const conn = await network.connect();
+    viem = conn.viem;
+    publicClient = await viem.getPublicClient();
+  });
+
+  it("Should emit the Increment event when calling inc()", async () => {
     const counter = await viem.deployContract("Counter");
 
     await viem.assertions.emitWithArgs(
@@ -18,7 +27,7 @@ describe("Counter", async function () {
     );
   });
 
-  it("The sum of the Increment events should match the current value", async function () {
+  it("The sum of Increment events should match the current value", async () => {
     const counter = await viem.deployContract("Counter");
     const deploymentBlockNumber = await publicClient.getBlockNumber();
 
@@ -35,11 +44,9 @@ describe("Counter", async function () {
       strict: true,
     });
 
-    // check that the aggregated events match the current value
+    // aggregated events should equal current state
     let total = 0n;
-    for (const event of events) {
-      total += event.args.by;
-    }
+    for (const ev of events) total += ev.args.by;
 
     assert.equal(total, await counter.read.x());
   });
