@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: Hardhat CI & Deploy
 
 on:
@@ -14,9 +15,12 @@ concurrency:
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
+    environment: CICD     
+
     env:
       HARDHAT_NETWORK: hardhat
       NODE_OPTIONS: --test-reporter=spec
+      # read from the environment's secrets/vars
       RPC_URL: ${{ secrets.RPC_URL }}
       PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
       CHAIN_ID: ${{ vars.CHAIN_ID }}
@@ -35,12 +39,10 @@ jobs:
 
       - name: Compile
         run: npx hardhat compile
-        
-      # Primary tests: Hardhat (Mocha)
-      - name: Run tests
+
+      - name: Run tests (Hardhat)
         run: npx hardhat test
 
-      # Fail fast if deploy secrets missing on main
       - name: Verify deploy env
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         run: |
