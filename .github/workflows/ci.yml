@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: Hardhat CI & Deploy
 
 on:
@@ -14,52 +15,47 @@ concurrency:
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
-
     env:
       HARDHAT_NETWORK: hardhat
       NODE_OPTIONS: --test-reporter=spec
+      # Expose to Hardhat config (compile/test won't need them, deploy will)
+      RPC_URL: ${{ secrets.RPC_URL }}
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      # optional if your RPC needs it; use Actions "Variables" if non-secret:
+      CHAIN_ID: ${{ vars.CHAIN_ID }}
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22.x'               # Hardhat v3+ wants Node 22 LTS
           cache: 'npm'
           cache-dependency-path: package-lock.json
 
-      - name: Install dependencies
+      - name: Install deps
         run: npm ci --no-audit --no-fund
 
-      - name: Compile contracts
+      - name: Compile
         run: npx hardhat compile
 
-      # Optional legacy mocha-style tests (kept non-fatal)
-      - name: Run Hardhat (Mocha) tests (optional)
-        run: |
-          if ls test 1>/dev/null 2>&1 && grep -RIlq "" test 2>/dev/null; then
-            npx hardhat test || true
-          fi
-
-      # --- The important part for TS + ESM + node:test ---
+      # TS + ESM tests (your Counter test)
       - name: Run node:test (TypeScript, ESM)
-        run: |
-          # Requires devDependency: ts-node >= 10.9
-          node --loader ts-node/esm --test "test/**/*.ts" "test/*.ts"
+        run: node --loader ts-node/esm --test "test/**/*.ts" "test/*.ts"
 
-      # Deploy only on push to main (not PRs)
-      - name: Deploy contracts
+      # Fail early if secrets missing on main
+      - name: Verify deploy env
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        env:
-          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-          RPC_URL: ${{ secrets.RPC_URL }}
         run: |
-          echo "Deploying with scripts/deploy2.ts to 'didlab'..."
-          npx hardhat run scripts/deploy2.ts --network didlab
+          [ -n "${RPC_URL}" ] || { echo "RPC_URL is not set"; exit 1; }
+          [ -n "${PRIVATE_KEY}" ] || { echo "PRIVATE_KEY is not set"; exit 1; }
+          echo "Deploy env OK."
 
-      - name: Upload build artifacts
+      - name: Deploy (didlab)
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: npx hardhat run scripts/deploy2.ts --network didlab
+
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
