@@ -11,56 +11,84 @@ jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
 
-    # All commands run inside the HardHat project folder
     defaults:
       run:
         working-directory: HardHat
 
     env:
-      # Ensure Hardhat uses its in-process network during node:test runs
       HARDHAT_NETWORK: hardhat
-      # Optional: make Node's test runner output more verbose
       NODE_OPTIONS: --test-reporter=spec
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      # Detect lockfile so we can safely toggle caching
+      - name: Detect lockfile
+        id: lock
+        run: |
+          if [ -f "HardHat/package-lock.json" ]; then
+            echo "manager=npm" >> $GITHUB_OUTPUT
+            echo "path=HardHat/package-lock.json" >> $GITHUB_OUTPUT
+          elif [ -f "HardHat/npm-shrinkwrap.json" ]; then
+            echo "manager=npm" >> $GITHUB_OUTPUT
+            echo "path=HardHat/npm-shrinkwrap.json" >> $GITHUB_OUTPUT
+          elif [ -f "HardHat/pnpm-lock.yaml" ]; then
+            echo "manager=pnpm" >> $GITHUB_OUTPUT
+            echo "path=HardHat/pnpm-lock.yaml" >> $GITHUB_OUTPUT
+          elif [ -f "HardHat/yarn.lock" ]; then
+            echo "manager=yarn" >> $GITHUB_OUTPUT
+            echo "path=HardHat/yarn.lock" >> $GITHUB_OUTPUT
+          else
+            echo "manager=" >> $GITHUB_OUTPUT
+            echo "path=" >> $GITHUB_OUTPUT
+          fi
+          echo "Detected manager='${{ steps.lock.outputs.manager }}' path='${{ steps.lock.outputs.path }}'"
+
+      # Setup Node with cache (only if lockfile exists)
+      - name: Setup Node.js (with cache)
+        if: ${{ steps.lock.outputs.manager != '' }}
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: |
-            HardHat/package-lock.json
-            HardHat/npm-shrinkwrap.json
+          cache: ${{ steps.lock.outputs.manager }}
+          cache-dependency-path: ${{ steps.lock.outputs.path }}
+
+      # Fallback: Setup Node without cache (no lockfile committed)
+      - name: Setup Node.js (no cache)
+        if: ${{ steps.lock.outputs.manager == '' }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
 
       - name: Install dependencies
-        run: npm ci
+        run: |
+          if [ -f package.json ]; then
+            npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+          else
+            echo "package.json not found in HardHat/"; exit 1
+          fi
 
       - name: Compile contracts
         run: npx hardhat compile
 
-      # If you still have any legacy Mocha tests (hardhat test), keep this.
+      # Optional: run legacy Hardhat/Mocha tests if you still have any
       - name: Run Hardhat (Mocha) tests (optional)
         run: |
-          if grep -RIlq "" test 2>/dev/null; then
-            # Runs only if there are files in /test (doesn't error if empty)
+          if ls test 1>/dev/null 2>&1 && grep -RIlq "" test 2>/dev/null; then
             npx hardhat test || true
           fi
 
-      # Run your Node's built-in test (node:test) suite — this is for the test you pasted.
-      # Assumes your test file(s) live under HardHat/test and are JS/ESM (.js/.mjs)
+      # Run your node:test suite (the Counter test you pasted)
       - name: Run node:test suite
         run: |
-          # Prefer explicit patterns to avoid trying to run artifacts
           if compgen -G "test/**/*.js" > /dev/null || compgen -G "test/**/*.mjs" > /dev/null || compgen -G "test/*.js" > /dev/null || compgen -G "test/*.mjs" > /dev/null; then
             node --test "test/**/*.mjs" "test/**/*.js" "test/*.mjs" "test/*.js"
           else
             echo "No node:test files found in ./test — skipping."
           fi
 
-      # Deploy only on main pushes (not PRs)
+      # Deploy only on pushes to main
       - name: Deploy contracts
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
         env:
