@@ -38,7 +38,7 @@ jobs:
         run: npm ci --no-audit --no-fund
 
       - name: Compile
-        run: npx hardhat compile
+        run: npx hardhat clean && npx hardhat compile --force
 
       - name: Run tests (Hardhat)
         run: npx hardhat test
@@ -52,6 +52,18 @@ jobs:
 
       - name: Deploy (didlab)
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        env:
+          RPC_URL:     ${{ secrets.RPC_URL }}
+          PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+          CHAIN_ID:    ${{ secrets.CHAIN_ID }}
+          # Token params (set in the CICD environment as Secrets/Variables)
+          TOKEN_NAME:       ${{ vars.TOKEN_NAME || secrets.TOKEN_NAME }}
+          TOKEN_SYMBOL:     ${{ vars.TOKEN_SYMBOL || secrets.TOKEN_SYMBOL }}
+          TOKEN_CAP:        ${{ vars.TOKEN_CAP || secrets.TOKEN_CAP }}
+          INITIAL_MINT:     ${{ vars.INITIAL_MINT || secrets.INITIAL_MINT }}
+          INITIAL_RECEIVER: ${{ vars.INITIAL_RECEIVER || secrets.INITIAL_RECEIVER }}
+          # Tell the script which contract to deploy:
+          CONTRACT_NAME: CampusCreditV3
         run: npx hardhat run scripts/deploy2.ts --network didlab
 
       - name: Upload artifacts
