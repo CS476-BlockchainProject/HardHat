@@ -5,7 +5,7 @@ import { loadArtifact, makeClients, parseUnits18, fees, requireEnv, maybeEnv, up
 (async () => {
   try {
     const { publicClient, walletClient } = makeClients();
-    const { abi, bytecode } = loadArtifact();
+    const { abi, bytecode } = await loadArtifact();
 
     const name = requireEnv('TOKEN_NAME');
     const symbol = requireEnv('TOKEN_SYMBOL');
