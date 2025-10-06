@@ -4,9 +4,7 @@ import { loadArtifact, makeClients, parseUnits18, fees, requireEnv, maybeEnv, up
 
 (async () => {
   try {
-    // Always produce artifacts on CI
-    await run("clean");
-    await run("compile", { force: true });
+    
     const CONTRACT_NAME = process.env.CONTRACT_NAME ?? "CampusCreditV3";
     const { abi, bytecode } = await loadArtifact();
     
