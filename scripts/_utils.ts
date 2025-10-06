@@ -67,7 +67,7 @@ export function makeClients() {
 }
 
 export function loadArtifact() {
-  const p = path.join(process.cwd(), 'artifacts', 'contracts', 'CampusCreditV2.sol', 'CampusCreditV2.json');
+  const p = path.join(process.cwd(), 'artifacts', 'contracts', 'CampusCreditV3.sol', 'CampusCreditV3.json');
   if (!fs.existsSync(p)) {
     console.error(`Artifact not found at ${p}. Did you run "npx hardhat compile"?`);
     process.exit(1);
