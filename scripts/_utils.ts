@@ -1,3 +1,4 @@
+import { artifacts } from "hardhat";
 import 'dotenv/config';
 import {
   createPublicClient,
@@ -66,16 +67,26 @@ export function makeClients() {
   return { publicClient, walletClient, chain };
 }
 
-export function loadArtifact() {
-  const p = path.join(process.cwd(), 'artifacts', 'contracts', 'CampusCreditV3.sol', 'CampusCreditV3.json');
-  if (!fs.existsSync(p)) {
-    console.error(`Artifact not found at ${p}. Did you run "npx hardhat compile"?`);
-    process.exit(1);
+export async function loadArtifact() {
+  const contractName = process.env.CONTRACT_NAME ?? "CampusCreditV3"; // <— set default
+  try {
+    // Try simple contract name first (e.g., "CampusCreditV3")
+    return artifacts.readArtifactSync(contractName);
+  } catch {
+    // Fall back to fully-qualified lookup (e.g., "contracts/token/CampusCreditV3.sol:CampusCreditV3")
+    const fqns = await artifacts.getAllFullyQualifiedNames();
+    const match = fqns.find((f) => f.endsWith(`:${contractName}`));
+    if (match) return artifacts.readArtifactSync(match);
+
+    const available = fqns
+      .map((f) => f.split(":").pop()!) // just the contract names
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort()
+      .join(", ");
+    throw new Error(
+      `Artifact for "${contractName}" not found. Available contracts: ${available}`
+    );
   }
-  const raw = JSON.parse(fs.readFileSync(p, 'utf8'));
-  const abi = raw.abi;
-  const bytecode: Hex = raw.bytecode;
-  return { abi, bytecode };
 }
 
 export function updateEnvTokenAddress(addr: Address) {
