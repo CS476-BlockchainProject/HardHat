@@ -4,9 +4,13 @@ import { loadArtifact, makeClients, parseUnits18, fees, requireEnv, maybeEnv, up
 
 (async () => {
   try {
-    const { publicClient, walletClient } = makeClients();
+    // Always produce artifacts on CI
+    await run("clean");
+    await run("compile", { force: true });
+    const CONTRACT_NAME = process.env.CONTRACT_NAME ?? "CampusCreditV3";
     const { abi, bytecode } = await loadArtifact();
-
+    
+    const { publicClient, walletClient } = makeClients();
     const name = requireEnv('TOKEN_NAME');
     const symbol = requireEnv('TOKEN_SYMBOL');
     const capHuman = requireEnv('TOKEN_CAP');
