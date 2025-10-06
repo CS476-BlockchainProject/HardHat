@@ -68,23 +68,38 @@ export function makeClients() {
 }
 
 export async function loadArtifact() {
-  const contractName = process.env.CONTRACT_NAME ?? "CampusCreditV3"; // <— set default
-  try {
-    // Try simple contract name first (e.g., "CampusCreditV3")
-    return artifacts.readArtifactSync(contractName);
-  } catch {
-    // Fall back to fully-qualified lookup (e.g., "contracts/token/CampusCreditV3.sol:CampusCreditV3")
-    const fqns = await artifacts.getAllFullyQualifiedNames();
-    const match = fqns.find((f) => f.endsWith(`:${contractName}`));
-    if (match) return artifacts.readArtifactSync(match);
+  const contractName = process.env.CONTRACT_NAME ?? "CampusCreditV3";
 
-    const available = fqns
-      .map((f) => f.split(":").pop()!) // just the contract names
-      .filter((v, i, a) => a.indexOf(v) === i)
-      .sort()
-      .join(", ");
+  // Try direct name
+  try {
+    return await artifacts.readArtifact(contractName);
+  } catch {
+    // Fallback: search fully-qualified names
+    const fqnsRaw = await artifacts.getAllFullyQualifiedNames();
+    const iter: Iterable<string> =
+      (fqnsRaw as any)?.[Symbol.iterator] ? (fqnsRaw as Iterable<string>) : [];
+
+    let matched: string | undefined;
+    for (const fqn of iter) {
+      if (fqn.endsWith(`:${contractName}`)) {
+        matched = fqn;
+        break;
+      }
+    }
+
+    if (matched) {
+      return await artifacts.readArtifact(matched);
+    }
+
+    // List available contract names
+    const names = new Set<string>();
+    for (const fqn of iter) {
+      const name = fqn.split(":").pop();
+      if (name) names.add(name);
+    }
+    const available = [...names].sort().join(", ");
     throw new Error(
-      `Artifact for "${contractName}" not found. Available contracts: ${available}`
+      `Artifact for "${contractName}" not found. Available contracts: ${available || "(none)"}`
     );
   }
 }
