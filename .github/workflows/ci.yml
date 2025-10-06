@@ -63,7 +63,7 @@ jobs:
           INITIAL_MINT:     ${{ vars.INITIAL_MINT || secrets.INITIAL_MINT }}
           INITIAL_RECEIVER: ${{ vars.INITIAL_RECEIVER || secrets.INITIAL_RECEIVER }}
           # Tell the script which contract to deploy:
-          CONTRACT_NAME: CampusCreditV3
+          CONTRACT_NAME: BankMintToken
         run: npx hardhat run scripts/deploy2.ts --network didlab
 
       - name: Upload artifacts
