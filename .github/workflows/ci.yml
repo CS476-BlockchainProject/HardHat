@@ -23,7 +23,7 @@ jobs:
       # read from the environment's secrets/vars
       RPC_URL: ${{ secrets.RPC_URL }}
       PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
-      CHAIN_ID: ${{ vars.CHAIN_ID }}
+      CHAIN_ID: ${{ secrets.CHAIN_ID || vars.CHAIN_ID }}
 
     steps:
       - uses: actions/checkout@v4
