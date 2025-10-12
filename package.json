@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "cli": "hardhat run scripts/cli.ts --network hardhat",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile": "hardhat compile",
     "deploy": "hardhat run scripts/deploy.ts --network didlab",
