@@ -17,3 +17,14 @@ npx hardhat run scripts/logs-query.ts --network didlab
 Send Transaction
 npx hardhat run scripts/send-op-tx.ts --network didlab
 ```
+
+# How to run tests
+```bash
+npm test
+```
+
+
+# How to run CLI
+```bash
+npm run cli     
+```
