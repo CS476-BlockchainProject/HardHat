@@ -5,7 +5,7 @@
  */
 import * as dotenv from "dotenv";
 dotenv.config({ path: ".env" });
-
+import { pathToFileURL } from "node:url";
 import { spawn } from "node:child_process";
 import readline from "node:readline";
 import { promisify } from "node:util";
@@ -129,4 +129,13 @@ export async function main() {
   rl.close();
 }
 
+if (import.meta.url === pathToFileURL(process.argv[1]).toString()) {
+  // file was executed directly: `tsx scripts/cli-main.ts`
+  main().catch((e) => {
+    console.error(e);
+    process.exit(1);
+  });
+}
+
 export default main;
+

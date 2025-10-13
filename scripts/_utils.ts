@@ -67,8 +67,8 @@ export function makeClients() {
   return { publicClient, walletClient, chain };
 }
 
-export async function loadArtifact() {
-  const contractName = process.env.CONTRACT_NAME ?? "CampusCreditV3";
+export async function loadArtifact(p0: string) {
+  const contractName = process.env.CONTRACT_NAME ?? "BankMintToken";
 
   // Try direct name
   try {

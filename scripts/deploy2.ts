@@ -5,7 +5,7 @@ import { loadArtifact, makeClients, parseUnits18, fees, requireEnv, maybeEnv, up
 (async () => {
   try {
     
-    const CONTRACT_NAME = process.env.CONTRACT_NAME ?? "CampusCreditV3";
+    const CONTRACT_NAME = process.env.CONTRACT_NAME ?? "BankMintToken";
     const { abi, bytecode } = await loadArtifact();
     
     const { publicClient, walletClient } = makeClients();

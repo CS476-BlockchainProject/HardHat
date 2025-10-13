@@ -1,25 +1,34 @@
 #!/usr/bin/env ts-node
-import { Address, getContract, zeroAddress } from 'viem';
-import { loadArtifact, makeClients, requireEnv, parseUnits18, fees } from './_utils';
+import type { Address } from "viem";
+import { getContract } from "viem";
+import { loadArtifact, makeClients, requireEnv, parseUnits18, fees } from "./_utils";
 
 (async () => {
   try {
     const { publicClient, walletClient } = makeClients();
-    const { abi } = loadArtifact();
 
-    const token = requireEnv('TOKEN_ADDRESS') as Address;
-    const second = requireEnv('SECOND_ADDRESS') as Address;
-    const transferAmt = parseUnits18(requireEnv('TRANSFER_AMOUNT'));
-    const approveAmt = parseUnits18(requireEnv('APPROVE_AMOUNT'));
+    // await and pass the correct contract name
+    const { abi } = await loadArtifact("BankMintToken"); // or "CampusCreditV3" if you renamed the contract
+
+    const token = requireEnv("TOKEN_ADDRESS") as Address;
+    const second = requireEnv("SECOND_ADDRESS") as Address;
+    const transferAmt = parseUnits18(requireEnv("TRANSFER_AMOUNT"));
+    const approveAmt = parseUnits18(requireEnv("APPROVE_AMOUNT"));
 
     const [deployer] = await walletClient.getAddresses();
-    const c = getContract({ address: token, abi, client: { public: publicClient, wallet: walletClient } });
+
+    // Pass a single client (walletClient) to viem's getContract
+    const c = getContract({
+      address: token,
+      abi,
+      client: walletClient,
+    });
 
     const bal = async (addr: Address) => await c.read.balanceOf([addr]);
     const beforeA = await bal(deployer as Address);
     const beforeB = await bal(second);
 
-    console.log('Balances BEFORE:');
+    console.log("Balances BEFORE:");
     console.log(`  ${deployer}: ${beforeA} wei`);
     console.log(`  ${second}: ${beforeB} wei`);
 
@@ -29,28 +38,28 @@ import { loadArtifact, makeClients, requireEnv, parseUnits18, fees } from './_ut
     const tx1 = await c.write.transfer([second, transferAmt], { maxFeePerGas, maxPriorityFeePerGas });
     const r1 = await publicClient.waitForTransactionReceipt({ hash: tx1 });
     const paid1 = r1.gasUsed * (r1.effectiveGasPrice ?? 0n);
-    console.log('\nTransfer:');
-    console.log('  tx hash:', tx1);
-    console.log('  block  :', r1.blockNumber.toString());
-    console.log('  gasUsed:', r1.gasUsed.toString(), ' paid:', paid1.toString(), 'wei');
+    console.log("\nTransfer:");
+    console.log("  tx hash:", tx1);
+    console.log("  block  :", r1.blockNumber.toString());
+    console.log("  gasUsed:", r1.gasUsed.toString(), " paid:", paid1.toString(), "wei");
 
     // approve
     const tx2 = await c.write.approve([second, approveAmt], { maxFeePerGas, maxPriorityFeePerGas });
     const r2 = await publicClient.waitForTransactionReceipt({ hash: tx2 });
     const paid2 = r2.gasUsed * (r2.effectiveGasPrice ?? 0n);
-    console.log('\nApprove:');
-    console.log('  tx hash:', tx2);
-    console.log('  block  :', r2.blockNumber.toString());
-    console.log('  gasUsed:', r2.gasUsed.toString(), ' paid:', paid2.toString(), 'wei');
+    console.log("\nApprove:");
+    console.log("  tx hash:", tx2);
+    console.log("  block  :", r2.blockNumber.toString());
+    console.log("  gasUsed:", r2.gasUsed.toString(), " paid:", paid2.toString(), "wei");
 
     const allowance = await c.read.allowance([deployer as Address, second]);
     const afterA = await bal(deployer as Address);
     const afterB = await bal(second);
 
-    console.log('\nBalances AFTER:');
+    console.log("\nBalances AFTER:");
     console.log(`  ${deployer}: ${afterA} wei`);
     console.log(`  ${second}: ${afterB} wei`);
-    console.log('\nAllowance:');
+    console.log("\nAllowance:");
     console.log(`  owner=${deployer} spender=${second} allowance=${allowance} wei`);
 
     if (afterA === undefined || allowance === undefined) process.exit(1);
