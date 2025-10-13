@@ -63,6 +63,7 @@ jobs:
           INITIAL_MINT:     ${{ vars.INITIAL_MINT || secrets.INITIAL_MINT }}
           INITIAL_RECEIVER: ${{ vars.INITIAL_RECEIVER || secrets.INITIAL_RECEIVER }}
           MAX_FEE_GWEI: ${{ vars.MAX_FEE_GWEI || secrets.MAX_FEE_GWEI }}
+          PRIORITY_FEE_GWEI: ${{ vars.PRIORITY_FEE_GWEI || secrets.PRIORITY_FEE_GWEI }}
           # Tell the script which contract to deploy:
           CONTRACT_NAME: BankMintToken
         run: npx hardhat run scripts/deploy2.ts --network didlab
