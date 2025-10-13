@@ -8,6 +8,12 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "outDir": "dist",
-    "types": ["node", "hardhat"]
-  }
+    "types": ["node", "hardhat", "vitest/globals"]
+  },
+  "include": [
+    "scripts/**/*.ts",
+    "test/**/*.ts",
+    "vite.config.ts",
+    "vitest.config.ts"
+  ]
 }
