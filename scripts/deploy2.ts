@@ -19,13 +19,15 @@ import { loadArtifact, makeClients, parseUnits18, fees, requireEnv, maybeEnv, up
     const defaultReceiver = (await walletClient.getAddresses())[0] as Address;
     const initialReceiver = (maybeEnv('INITIAL_RECEIVER') as Address) || defaultReceiver;
 
-    const { maxFeePerGas, maxPriorityFeePerGas } = fees();
+    // Instead of EIP-1559 fees, use legacy gas price:
+    // You can replace this with a dynamic value if you want
+    const gasPrice = BigInt(2_000_000_000); // 2 gwei, adjust as needed
 
     const hash = await walletClient.deployContract({
       abi,
       bytecode,
       args: [name, symbol, cap, initialReceiver, initialMint],
-      ...{ maxFeePerGas, maxPriorityFeePerGas }
+      gasPrice,
     });
 
     const receipt = await publicClient.waitForTransactionReceipt({ hash });
