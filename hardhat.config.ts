@@ -1,4 +1,3 @@
-// hardhat.config.ts
 import "dotenv/config";
 import "@nomicfoundation/hardhat-toolbox-viem";
 import { HardhatUserConfig } from "hardhat/config";
@@ -23,7 +22,7 @@ if (process.env.RPC_URL) {
 
 const config: HardhatUserConfig = {
   solidity: {
-    version: "0.8.24",
+    version: "0.8.21",
     settings: {
       optimizer: {
         enabled: true,

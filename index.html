@@ -1,262 +1,650 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>DIDLab — ERC-20 DApp</title>
-<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SavingsPool DApp</title>
+
 <style>
-html,body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-
-serif;margin:0;padding:0;background:#0b1320;color:#e6eaf2}
-.wrap{max-width:880px;margin:40px auto;padding:24px;border:1px solid #24314a;border-radius:14px;background:#0f1a2b}
-h1{margin:0 0 16px;font-size:22px}
-.row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
-.row > *{flex:1}
-input,select,button{padding:10px 12px;border:1px solid
-#314164;background:#0b1527;color:#e6eaf2;border-radius:10px}
-button{cursor:pointer}
-button.primary{background:#335cff;border-color:#335cff}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.card{padding:12px;border:1px solid #24314a;border-radius:10px;background:#0b1527}
-.muted{opacity:.8}
-.ok{color:#7be07b}.warn{color:#ffd166}.err{color:#ff6b6b}
-a{color:#9bc1ff}
-.kvs{display:grid;grid-template-columns:180px 1fr;gap:8px}
-.kvs div{padding:6px 8px;border-bottom:1px dashed #22314e}
+  body{font-family: system-ui; background:#0b0c10; color:#e6edf3; margin:0; padding:24px;}
+  h2,h3,h4{margin:12px 0;}
+  .row{display:flex; gap:8px; align-items:center; flex-wrap:wrap;}
+  input{
+    background:#0f1117; border:1px solid #262b36; color:#e6edf3; padding:8px 10px;
+    border-radius:10px; outline:none; width:220px;
+  }
+  .btn{background:#3b82f6; color:white; border:none; border-radius:10px; padding:8px 14px; cursor:pointer;}
+  .btn:disabled{opacity:0.55; cursor:not-allowed;}
+  .btn-alt{background:transparent; color:#e6edf3; border:1px solid #262b36; border-radius:10px; padding:8px 14px; cursor:pointer;}
+  #walletAddr{margin:8px 0 16px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+  #depositHint{margin-top:8px; font-size:0.95rem;}
+  a{color:#8ab4ff; text-decoration:none;}
+  a:hover{text-decoration:underline;}
+  hr{border:0; border-top:1px solid #262b36; margin:20px 0;}
+  .hint{color:#9aa4b2;}
+  .err{color:#f87171;}
+  .ok{color:#34d399;}
+
+  table{width:100%; border-collapse:collapse; margin-top:10px;}
+  th,td{padding:10px; border-bottom:1px solid #262b36; text-align:left; font-size:14px;}
+  th{color:#9aa4b2; font-weight:600;}
+  td.mono{font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Courier New", monospace;}
+
+  /* modal (Withdraw confirm) */
+  #modalBackdrop{display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); align-items:center; justify-content:center; z-index:10;}
+  #modalCard{background:#12131a; padding:20px; border-radius:12px; width:360px; box-shadow:0 10px 30px rgba(0,0,0,.4);}
+  #modalFooter{display:flex; gap:8px; justify-content:flex-end; margin-top:12px;}
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
 </head>
+
 <body>
-<div class="wrap">
-<h1>￿ DIDLab — ERC-20 DApp</h1>
-<!-- CONFIG -->
-<div class="card">
-<div class="row">
-<div>
-<label>Team</label>
-<select id="team">
-<option>01</option><option>02</option><option>03</option><option>04</option>
-<option>05</option><option>06</option><option>07</option><option>08</option>
-<option>09</option><option>10</option><option>11</option><option>12</option>
-</select>
-</div>
-<div>
-<label>Token Address</label>
-<input id="tokenAddr" class="mono" placeholder="0x..." />
-</div>
-</div>
-<div class="row">
-<button id="btnConnect" class="primary">1) Connect & Switch Network</button>
-<button id="btnLoad">2) Load Token</button>
-<button id="btnWatch">Add Token to MetaMask</button>
-<button id="btnRefresh">Refresh Balance</button>
-</div>
-</div>
-<!-- STATUS -->
-<div class="row">
-<div class="card">
-<div class="kvs">
-<div class="muted">Account</div><div id="acct" class="mono">—</div>
-<div class="muted">Network</div><div id="net" class="mono">—</div>
-<div class="muted">Token</div><div id="meta" class="mono">—</div>
-<div class="muted">Balance</div><div id="bal" class="mono">—</div>
-</div>
-</div>
-</div>
-<!-- TRANSFER -->
-<div class="card">
-<h3>Transfer</h3>
-<div class="row">
-<input id="to" class="mono" placeholder="Recipient 0x..." />
-<input id="amt" class="mono" placeholder="Amount (human units)" />
-<button id="btnSend" class="primary">Send</button>
-</div>
-<div id="txlog" class="mono muted"></div>
-</div>
-<p class="muted">Tip: values persist in localStorage.</p>
-</div>
-<script type="module">
-// ===== Imports (no build step)
-import {
-createPublicClient, createWalletClient, custom,
-getAddress, formatUnits, parseUnits
-} from "https://esm.sh/viem@2.37.5";
-// ===== Minimal ERC-20 ABI
-const ERC20_ABI = [
-{ type:"function", name:"name", stateMutability:"view", inputs:[],
-outputs:[{type:"string"}]},
-{ type:"function", name:"symbol", stateMutability:"view", inputs:[],
-outputs:[{type:"string"}]},
-{ type:"function", name:"decimals",stateMutability:"view", inputs:[],
-outputs:[{type:"uint8"}]},
-{ type:"function", name:"balanceOf", stateMutability:"view",
-inputs:[{name:"account",type:"address"}], outputs:[{type:"uint256"}]},
-{ type:"function", name:"transfer", stateMutability:"nonpayable",
-inputs:[{name:"to",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}]},
-{ type:"event", name:"Transfer", inputs:[
-{indexed:true, name:"from", type:"address"},
-{indexed:true, name:"to", type:"address"},
-{indexed:false,name:"value",type:"uint256"}
-]},
+  <h2 style="text-align:center;">💧 SavingsPool</h2>
+
+  <div class="row">
+    <button id="btnConnect" class="btn">Connect Wallet</button>
+    <div id="walletAddr">—</div>
+  </div>
+  <div class="hint" id="contractInfo" style="margin-top:-8px"></div>
+
+  <hr />
+
+  <h3>Quick Deposit <small id="aprBadge" class="hint" style="font-weight:500;margin-left:8px;"></small></h3>
+  <div class="row">
+    <input id="depositAmount" type="number" inputmode="decimal" step="any" placeholder="Amount in TT" />
+    <button id="btnQuickDeposit" class="btn" disabled>Deposit</button>
+  </div>
+  <div id="depositHint" class="hint"></div>
+
+  <hr />
+
+  <h3>Positions</h3>
+  <div class="hint">Use “Import My Positions” to pull your real on-chain IDs from this exact pool.</div>
+  <div class="row" style="margin-top:8px;">
+    <button id="btnImport" class="btn-alt">Import My Positions</button>
+    <input id="inspectId" placeholder="Inspect ID" />
+    <button id="btnInspect" class="btn-alt">Inspect</button>
+    <input id="manualId" placeholder="ID (manual add)" />
+    <input id="manualPrincipal" placeholder="Principal TT" inputmode="decimal" />
+    <button id="btnAddManual" class="btn-alt">Add Manual</button>
+    <button id="btnClearLocal" class="btn-alt">Clear Local</button>
+  </div>
+  <table id="posTable">
+    <thead>
+      <tr><th>ID</th><th>Principal</th><th>Accrued</th><th>Since</th><th></th></tr>
+    </thead>
+    <tbody id="posTbody">
+      <tr><td colspan="5" class="hint">No positions yet.</td></tr>
+    </tbody>
+  </table>
+
+  <!-- Modal for Withdraw confirm -->
+  <div id="modalBackdrop">
+    <div id="modalCard">
+      <h4 id="modalTitle">Withdraw — Confirm</h4>
+      <div id="modalBody"></div>
+      <div id="modalFooter">
+        <button id="btnBack" class="btn-alt">Cancel</button>
+        <button id="btnNext" class="btn">Withdraw</button>
+      </div>
+    </div>
+  </div>
+
+  <hr />
+
+  <h3>Admin</h3>
+  <div class="row">
+    <div id="adminAprNow" class="hint">APR: —</div>
+    <input id="adminAprNew" type="number" step="1" placeholder="New APR (bps)" />
+    <button id="btnSetApr" class="btn-alt">Set APR</button>
+  </div>
+
+<script>
+/* ===== Config =====
+   Set RECEIPT_ADDRESS to your deployed ReceiptNFT. The UI will read receipt.pool()
+   and automatically adopt that SavingsPool as the active POOL_ADDRESS. */
+const RECEIPT_ADDRESS = "0x3bab23d35db824692c9e92e55691a002bbd07c01";   
+let   POOL_ADDRESS     = "0xeca0689213b7475e4697f5b7158df56b77a9e546"; // default; will auto-switch
+
+const TARGET_CHAIN_ID_DEC = 252501;                 // DIDLab
+const TARGET_CHAIN_ID_HEX = "0x3da55";
+const EXPLORER_TX_PREFIX = "https://explorer.didlab.org/tx/";
+const CHAIN_PARAMS = {
+  chainId: TARGET_CHAIN_ID_HEX,
+  chainName: "DIDLab",
+  nativeCurrency: { name: "TT", symbol: "TT", decimals: 18 },
+  rpcUrls: ["https://eth.didlab.org/"],
+  blockExplorerUrls: ["https://explorer.didlab.org/"]
+};
+
+/* ===== Ethers objects & ABIs ===== */
+let provider, signer, account, contract, receiptNFT;
+
+const POOL_ABI = [
+  {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+  {"inputs":[],"name":"deposit","outputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"stateMutability":"payable","type":"function"},
+  {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"withdraw","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"aprBps","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"uint256","name":"bps","type":"uint256"}],"name":"setApr","outputs":[],"stateMutability":"nonpayable","type":"function"},
+  {"inputs":[],"name":"owner","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+  {"inputs":[],"name":"receipt","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+  {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"positions","outputs":[
+    {"internalType":"uint128","name":"principal","type":"uint128"},
+    {"internalType":"uint64","name":"start","type":"uint64"},
+    {"internalType":"bool","name":"active","type":"bool"}],"stateMutability":"view","type":"function"},
+  {"anonymous":false,"inputs":[
+    {"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},
+    {"indexed":true,"internalType":"address","name":"owner","type":"address"},
+    {"indexed":false,"internalType":"uint256","name":"amount","type":"uint256"}],"name":"Deposited","type":"event"}
 ];
-// ===== Team → RPC/Chain config
-const TEAM_CHAINS = {
-"01": { id: 31337, name:"DIDLab Team 01", rpc:"https://hh-01.didlab.org" },
-"02": { id: 31338, name:"DIDLab Team 02", rpc:"https://hh-02.didlab.org" },
-"03": { id: 31339, name:"DIDLab Team 03", rpc:"https://hh-03.didlab.org" },
-"04": { id: 31340, name:"DIDLab Team 04", rpc:"https://hh-04.didlab.org" },
-"05": { id: 31341, name:"DIDLab Team 05", rpc:"https://hh-05.didlab.org" },
-"06": { id: 31342, name:"DIDLab Team 06", rpc:"https://hh-06.didlab.org" },
-"07": { id: 31343, name:"DIDLab Team 07", rpc:"https://hh-07.didlab.org" },
-"08": { id: 31344, name:"DIDLab Team 08", rpc:"https://hh-08.didlab.org" },
-"09": { id: 31345, name:"DIDLab Team 09", rpc:"https://hh-09.didlab.org" },
-"10": { id: 31346, name:"DIDLab Team 10", rpc:"https://hh-10.didlab.org" },
-"11": { id: 31347, name:"DIDLab Team 11", rpc:"https://hh-11.didlab.org" },
-"12": { id: 31348, name:"DIDLab Team 12", rpc:"https://hh-12.didlab.org" },
+
+const RECEIPT_ABI = [
+  "function ownerOf(uint256) view returns (address)",
+  "function pool() view returns (address)"
+];
+
+/* ===== Helpers ===== */
+const $ = id => document.getElementById(id);
+const setHint = (msg, cls="hint") => { const el=$("depositHint"); el.className=cls; el.textContent=msg; };
+const enableActions = (on) => { $("btnQuickDeposit").disabled = !on; };
+
+const GWEI = 10n ** 9n;
+const YEAR = 365n * 24n * 60n * 60n;
+
+function parseEthOrThrow(s){
+  if(!s) throw new Error("Enter an amount.");
+  const n = Number(s);
+  if(!Number.isFinite(n) || n <= 0) throw new Error("Amount must be a number > 0.");
+  return ethers.parseEther(s);
+}
+function fmtTT(wei){
+  const n = Number(ethers.formatEther(wei));
+  return n.toLocaleString(undefined,{maximumFractionDigits:6});
+}
+function prettyError(e){
+  const msg = e?.reason || e?.shortMessage || e?.message || String(e);
+  if(/require\(false\)/i.test(msg)) return "Not authorized or function is disabled on this contract.";
+  if(/execution reverted: !active/i.test(msg)) return "!active — position is closed or does not exist in this pool.";
+  if(/insufficient funds/i.test(msg)) return "Insufficient TT for amount + gas.";
+  if(/replacement fee too low/i.test(msg)) return "Fee too low; try again shortly.";
+  if(/execution reverted/i.test(msg)) return msg.replace(/^Error:\s*/,'');
+  if(/nonce too low/i.test(msg)) return "Nonce too low—possible stuck tx.";
+  return msg;
+}
+
+/* direct RPC sender (all numerics -> 0x hex strings) */
+async function rpcSend(txObj) {
+  const toHex = (x) => (x == null ? undefined : ethers.toBeHex(x));
+  const allowed = {};
+  if (txObj.from)      allowed.from = txObj.from;
+  if (txObj.to)        allowed.to = txObj.to;
+  if (txObj.data)      allowed.data = txObj.data; // must already be 0x…
+  if (txObj.value != null)    allowed.value    = toHex(txObj.value);
+  if (txObj.gas != null)      allowed.gas      = toHex(txObj.gas);
+  if (txObj.gasPrice != null) allowed.gasPrice = toHex(txObj.gasPrice);
+
+  const hash = await window.ethereum.request({ method: "eth_sendTransaction", params: [allowed] });
+  return { hash, wait: async () => await provider.waitForTransaction(hash) };
+}
+
+/* Address display + adoption */
+async function showContractInfo() {
+  let rAddr = "";
+  try { if (receiptNFT) rAddr = receiptNFT.target; } catch {}
+  $("contractInfo").textContent =
+    `Pool: ${POOL_ADDRESS}` + (rAddr ? `  •  ReceiptNFT: ${rAddr}` : "");
+}
+async function adoptPoolAddress(addr) {
+  POOL_ADDRESS = addr;
+  contract = new ethers.Contract(POOL_ADDRESS, POOL_ABI, signer);
+  await refreshApr();
+  await showContractInfo();
+}
+async function maybeAdoptPoolFromReceipt() {
+  if (!RECEIPT_ADDRESS) return;
+  try {
+    if (!receiptNFT) receiptNFT = new ethers.Contract(RECEIPT_ADDRESS, RECEIPT_ABI, provider);
+    const poolFromNFT = (await receiptNFT.pool())?.toLowerCase?.();
+    if (poolFromNFT && poolFromNFT !== POOL_ADDRESS.toLowerCase()) {
+      await adoptPoolAddress(poolFromNFT);
+      setHint("Auto-switched to the pool linked by your ReceiptNFT.");
+    }
+  } catch {}
+}
+
+/* ===== Connection ===== */
+async function ensureReady() {
+  if (!window.ethereum) throw new Error("Install MetaMask (or compatible wallet).");
+  if (!provider) provider = new ethers.BrowserProvider(window.ethereum);
+
+  let current = await provider.send("eth_chainId", []);
+  if (current.toLowerCase() !== TARGET_CHAIN_ID_HEX.toLowerCase()) {
+    try {
+      await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: TARGET_CHAIN_ID_HEX }] });
+    } catch (switchErr) {
+      if (switchErr.code === 4902 || (switchErr.data && switchErr.data.originalError?.code === 4902)) {
+        await window.ethereum.request({ method: "wallet_addEthereumChain", params: [CHAIN_PARAMS] });
+      } else {
+        throw new Error(`Wrong network. Please switch to chain ${TARGET_CHAIN_ID_DEC}.`);
+      }
+    }
+  }
+
+  if (!account) {
+    const accs = await provider.send("eth_requestAccounts", []);
+    account = accs[0];
+    $("walletAddr").textContent = account;
+  }
+  if (!signer) signer = await provider.getSigner();
+  if (!contract) contract = new ethers.Contract(POOL_ADDRESS, POOL_ABI, signer);
+
+  // Init receipt + auto-adopt actual pool from NFT
+  if (RECEIPT_ADDRESS && !receiptNFT)
+    receiptNFT = new ethers.Contract(RECEIPT_ADDRESS, RECEIPT_ABI, provider);
+  await maybeAdoptPoolFromReceipt();
+  await showContractInfo();
+
+  enableActions(true);
+}
+
+/* ===== APR / Positions ===== */
+let APR_BPS = 0n;
+function posKey(){ return `${TARGET_CHAIN_ID_DEC}:${POOL_ADDRESS}:${account}:positions`; }
+function loadPositions(){ try { return JSON.parse(localStorage.getItem(posKey())||"[]"); } catch { return []; } }
+function savePositions(arr){ localStorage.setItem(posKey(), JSON.stringify(arr)); }
+function addOrReplacePosition(p){
+  const arr = loadPositions();
+  const idx = arr.findIndex(x=>String(x.id)===String(p.id));
+  if (idx>=0) arr[idx]=p; else arr.push(p);
+  savePositions(arr); renderPositions();
+}
+function removePosition(id){ const arr = loadPositions().filter(p=>String(p.id)!==String(id)); savePositions(arr); renderPositions(); }
+
+async function refreshApr(){
+  try{
+    const bps = await contract.aprBps();
+    APR_BPS = BigInt(bps.toString());
+    $("aprBadge").textContent = `APR: ${(Number(APR_BPS)/100).toFixed(2)}%`;
+    $("adminAprNow").textContent = `APR: ${(Number(APR_BPS)/100).toFixed(2)}% (${APR_BPS} bps)`;
+  }catch{}
+}
+async function refreshBalance(){
+  try{
+    const balWei = await provider.getBalance(account);
+    setHint(`Connected. Balance: ${fmtTT(balWei)} TT. You can deposit now.`);
+  }catch{}
+}
+function renderPositions(){
+  const tb = $("posTbody");
+  const arr = loadPositions();
+  if(!arr.length){
+    tb.innerHTML = `<tr><td colspan="5" class="hint">No positions yet.</td></tr>`;
+    return;
+  }
+  tb.innerHTML = arr.map(p=>{
+    const since = new Date(p.startTs*1000).toLocaleString();
+    return `<tr data-id="${p.id}">
+      <td class="mono">${p.id ?? "?"}</td>
+      <td class="mono">${fmtTT(p.principalWei)} TT</td>
+      <td class="mono"><span class="accr" data-id="${p.id}">…</span></td>
+      <td>${since}</td>
+      <td><button class="btn-alt btnWithdraw" data-id="${p.id}">Withdraw</button></td>
+    </tr>`;
+  }).join("");
+  [...document.querySelectorAll(".btnWithdraw")].forEach(btn=>{
+    btn.onclick = ()=>beginWithdrawFlow(btn.getAttribute("data-id"));
+  });
+}
+function tickAccrued(){
+  const arr = loadPositions();
+  const nowSec = BigInt(Math.floor(Date.now()/1000));
+  for(const p of arr){
+    const elapsed = nowSec - BigInt(p.startTs);
+    if (elapsed < 0) continue;
+    const interestWei = (BigInt(p.principalWei) * APR_BPS * elapsed) / (10000n * YEAR);
+    const span = document.querySelector(`.accr[data-id="${p.id}"]`);
+    if (span) span.textContent = `${fmtTT(interestWei)} TT`;
+  }
+}
+
+/* ===== Deposit (quick) — safer bytes handling & simulation first ===== */
+async function sendDepositWithFallbacks(wei) {
+  if (!contract) contract = new ethers.Contract(POOL_ADDRESS, POOL_ABI, signer);
+
+  // simulate via contract (no manual BytesLike)
+  await contract.deposit.staticCall({ value: wei }).catch((e)=>{ throw new Error(prettyError(e)); });
+
+  // estimate gas
+  let gas = 220000n;
+  try {
+    const dataCalldata = contract.interface.encodeFunctionData("deposit");
+    const est = await provider.estimateGas({ to: POOL_ADDRESS, from: account, data: dataCalldata, value: wei });
+    gas = (est * 130n) / 100n;
+  } catch {}
+
+  // legacy gas price on this chain
+  const fee = await provider.getFeeData();
+  const legacyGasPrice = (fee.gasPrice && fee.gasPrice > 0n) ? fee.gasPrice : 20n * GWEI;
+
+  // canonical calldata
+  const data = contract.interface.encodeFunctionData("deposit", []);
+
+  const attempts = [
+    { label: "contract.deposit (preferred path)", send: () => contract.deposit({ value: wei, gasLimit: gas, gasPrice: legacyGasPrice }) },
+    { label: "direct eth_sendTransaction (legacy gasPrice)", send: () => rpcSend({ from: account, to: POOL_ADDRESS, data, value: wei, gas, gasPrice: legacyGasPrice }) },
+    { label: "direct eth_sendTransaction (gasPrice = 0)", send: () => rpcSend({ from: account, to: POOL_ADDRESS, data, value: wei, gas, gasPrice: 0n }) }
+  ];
+
+  let lastErr;
+  for (let i=0;i<attempts.length;i++){
+    try {
+      setHint(`Sending (attempt ${i+1}/${attempts.length}: ${attempts[i].label})…`);
+      const tx = await attempts[i].send();
+      return tx;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("All send attempts failed.");
+}
+
+async function quickDeposit() {
+  try {
+    await ensureReady();
+    await maybeAdoptPoolFromReceipt();
+    contract = new ethers.Contract(POOL_ADDRESS, POOL_ABI, signer);
+
+    const valStr = $("depositAmount").value.trim();
+    if (!valStr || Number(valStr) <= 0) { alert("Enter a valid amount in TT (> 0)."); return; }
+    const wei = ethers.parseEther(valStr);
+
+    $("btnQuickDeposit").disabled = true;
+    setHint("Preparing transaction…");
+
+    try { await refreshApr(); } catch {}
+
+    const tx = await sendDepositWithFallbacks(wei);
+    setHint(`Pending: ${tx.hash}`);
+    const receipt = await tx.wait();
+
+    // get real tokenId from Deposited event if present
+    let tokenId = null;
+    try {
+      const iface = new ethers.Interface(POOL_ABI);
+      for (const l of receipt.logs || []) {
+        const p = iface.parseLog(l);
+        if (p?.name === "Deposited") { tokenId = p.args.tokenId.toString(); break; }
+      }
+    } catch {}
+
+    // fetch mapping for start/principal if we have the id
+    let startTs = Math.floor(Date.now()/1000), principal = wei.toString();
+    if (tokenId) {
+      try {
+        const pos = await contract.positions(tokenId);
+        principal = pos.principal.toString();
+        startTs = Number(pos.start);
+      } catch {}
+    }
+
+    addOrReplacePosition({ id: tokenId || Date.now(), principalWei: principal, startTs, txHash: tx.hash });
+    await refreshBalance();
+
+    $("depositHint").innerHTML =
+      `<span class="ok">Confirmed in block ${receipt.blockNumber}.</span> `+
+      `<a href="${EXPLORER_TX_PREFIX}${tx.hash}" target="_blank">View on explorer</a>`;
+  } catch (err) {
+    const msg = prettyError(err);
+    alert(msg);
+    setHint(msg, "err");
+  } finally {
+    $("btnQuickDeposit").disabled = false;
+  }
+}
+
+
+/* ===== Withdraw (validated) ===== */
+async function sendWithdraw(id) {
+  const data = new ethers.Interface(POOL_ABI).encodeFunctionData("withdraw", [id]);
+  await provider.call({ to: POOL_ADDRESS, from: account, data }).catch((e)=>{ throw new Error(prettyError(e)); });
+  let gas = 160000n;
+  try { const est = await provider.estimateGas({ to: POOL_ADDRESS, from: account, data }); gas = (est*130n)/100n; } catch {}
+  const fee = await provider.getFeeData();
+  const gp = (fee.gasPrice && fee.gasPrice>0n) ? fee.gasPrice : 20n*GWEI;
+  return await rpcSend({ from: account, to: POOL_ADDRESS, data, gas, gasPrice: gp });
+}
+async function beginWithdrawFlow(id){
+  try{
+    await ensureReady();
+
+    // Verify mapping + owner
+    let pos = null, owner = null, ownerErr = null;
+    try { pos = await contract.positions(id); } catch {}
+    try {
+      if (!receiptNFT && RECEIPT_ADDRESS) receiptNFT = new ethers.Contract(RECEIPT_ADDRESS, RECEIPT_ABI, provider);
+      owner = (await receiptNFT.ownerOf(id)).toLowerCase();
+    } catch (e) { ownerErr = e?.message || String(e); }
+
+    if (!pos || pos.principal === undefined) {
+      alert(`No position mapping found for ID ${id} on this pool.\n`+
+            `Tip: Click “Import My Positions” to fetch IDs minted by this exact pool.`);
+      return;
+    }
+    if (!pos.active) {
+      alert(`!active — This pool has no active position for ID ${id}.\n`+
+            `If you see the NFT, it may have been minted by another pool address.`);
+      return;
+    }
+    if (ownerErr) { alert(`Could not read ownerOf(${id}): ${ownerErr}`); return; }
+    if (owner !== account.toLowerCase()) { alert(`You are not the owner of token ${id}. Current owner: ${owner}`); return; }
+
+    // Confirm UI
+    const nowSec = BigInt(Math.floor(Date.now()/1000));
+    const elapsed = nowSec - BigInt(pos.start);
+    const interestWei = (BigInt(pos.principal) * APR_BPS * elapsed) / (10000n * YEAR);
+    const totalWei = BigInt(pos.principal) + interestWei;
+
+    $("modalTitle").textContent = "Withdraw — Confirm";
+    $("modalBody").innerHTML = `
+      <div class="hint">ID <b class="mono">${id}</b></div>
+      <div style="margin-top:6px;">Principal: <b class="mono">${fmtTT(pos.principal)} TT</b></div>
+      <div>Accrued (est.): <b class="mono">${fmtTT(interestWei)} TT</b></div>
+      <div>Total (est.): <b class="mono">${fmtTT(totalWei)} TT</b></div>
+      <div class="hint" style="margin-top:6px;">Receipt owner: ${owner}</div>
+    `;
+    $("btnBack").onclick = ()=>{$("modalBackdrop").style.display='none';};
+    $("btnNext").onclick = async ()=>{
+      try{
+        $("btnNext").disabled = true;
+        const tx = await sendWithdraw(id);
+        await tx.wait();
+        removePosition(id);
+        $("modalBackdrop").style.display='none';
+        setHint(`Withdraw confirmed.`);
+        await refreshBalance();
+      }catch(e){
+        const msg = prettyError(e);
+        if (msg.includes("!active")) {
+          alert("Chain reported !active. This ID has no active position in this pool. It will be removed locally.");
+          removePosition(id);
+          $("modalBackdrop").style.display='none';
+        } else {
+          alert(msg);
+        }
+      }finally{
+        $("btnNext").disabled=false;
+      }
+    };
+    $("modalBackdrop").style.display='flex';
+  }catch(e){
+    alert(prettyError(e));
+  }
+}
+
+/* ===== Import positions (scan events from this pool) ===== */
+function topicAddress(addr){
+  // return a 32-byte (64 hex chars) left-padded topic for an address
+  const clean = String(addr).toLowerCase().replace(/^0x/,'');
+  if (clean.length !== 40) throw new Error("Bad address for topic: " + addr);
+  return "0x" + "0".repeat(24*2) + clean; // 24 bytes of zeros + 20-byte addr
+}
+
+async function importMyPositions(){
+  try{
+    await ensureReady();
+    const iface = new ethers.Interface(POOL_ABI);
+    const topic0 = ethers.id("Deposited(uint256,address,uint256)");
+    const topicOwner = topicAddress(account);
+
+    const logs = await provider.getLogs({
+      address: POOL_ADDRESS,
+      topics: [topic0, null, topicOwner],
+      fromBlock: "0x0",
+      toBlock: "latest"
+    });
+
+    if (!logs.length) { alert("No deposits found for this wallet on the active pool."); return; }
+
+    for (const l of logs) {
+      let tokenId; 
+      try { tokenId = iface.parseLog(l).args.tokenId.toString(); } catch { continue; }
+      try {
+        const p = await contract.positions(tokenId);
+        if (!p.active) continue; // only active
+        addOrReplacePosition({
+          id: tokenId,
+          principalWei: p.principal.toString(),
+          startTs: Number(p.start),
+          txHash: l.transactionHash
+        });
+      } catch {}
+    }
+    renderPositions();
+  }catch(e){
+    alert(prettyError(e));
+  }
+}
+
+/* ===== Admin APR (owner-gated) ===== */
+function hasFn(signature) {
+  try { contract.interface.getFunction(signature); return true; }
+  catch { return false; }
+}
+async function readOwnerIfAny() {
+  try { return (await contract.owner())?.toLowerCase(); } catch { return null; }
+}
+async function initAdminSection() {
+  try {
+    await ensureReady();
+    const btn = $("btnSetApr");
+    const input = $("adminAprNew");
+
+    const setterExists = hasFn("setApr(uint256)");
+    if (!setterExists) {
+      $("adminAprNow").textContent += " — setter not available on this contract.";
+      btn.disabled = true; input.disabled = true; return;
+    }
+
+    const owner = await readOwnerIfAny();
+    if (owner && owner !== account.toLowerCase()) {
+      $("adminAprNow").textContent += ` — you are not the owner (${owner.slice(0,6)}…${owner.slice(-4)}).`;
+      btn.disabled = true; input.disabled = true; return;
+    }
+
+    btn.disabled = false; input.disabled = false;
+  } catch {
+    $("adminAprNow").textContent += " — admin disabled (cannot verify permissions).";
+    $("btnSetApr").disabled = true; $("adminAprNew").disabled = true;
+  }
+}
+$("btnSetApr").onclick = async ()=>{
+  try{
+    await ensureReady();
+    const x = $("adminAprNew").value.trim();
+    if (!x || Number(x)<0) { alert("Enter APR in basis points (e.g., 500 = 5.00%)"); return; }
+    const bps = BigInt(x);
+
+    const data = new ethers.Interface(POOL_ABI).encodeFunctionData("setApr",[bps]);
+    await provider.call({ to: POOL_ADDRESS, from: account, data }).catch(e=>{ throw new Error(prettyError(e)); });
+
+    let gas = 150000n;
+    const fee = await provider.getFeeData();
+    const gp = (fee.gasPrice && fee.gasPrice>0n) ? fee.gasPrice : 20n*GWEI;
+    const tx = await rpcSend({ from: account, to: POOL_ADDRESS, data, gas, gasPrice: gp });
+    await tx.wait();
+    await refreshApr();
+    alert("APR updated.");
+  }catch(e){ alert(prettyError(e)); }
 };
-// ===== UI elements
-const el = (id)=>document.getElementById(id);
-const teamSel = el("team");
-const tokenInput = el("tokenAddr");
-const acctEl = el("acct"), netEl = el("net"), metaEl = el("meta"), balEl = el("bal");
-const txlog = el("txlog");
-// ===== State
-let chain, token, decimals=18, symbol="ETH", name="ETH";
-let walletClient, publicClient, account;
-// ===== Load/save simple prefs
-const saved = JSON.parse(localStorage.getItem("didlab-ui")||"{}");
-if (saved.team) teamSel.value = saved.team;
-if (saved.token) tokenInput.value = saved.token;
-function save() {
-localStorage.setItem("didlab-ui", JSON.stringify({
-team: teamSel.value, token: tokenInput.value
-}));
-}
-// ===== Chain helpers
-function currentChain() {
-const t = TEAM_CHAINS[teamSel.value];
-return {
-id: t.id,
-name: t.name,
-nativeCurrency: { name:"ETH", symbol:"ETH", decimals:18 },
-rpcUrls: { default: { http: [t.rpc] } }
+
+/* ===== Inspect tool ===== */
+$("btnInspect").onclick = async ()=>{
+  await ensureReady();
+  const id = $("inspectId").value.trim();
+  if (!id) return alert("Enter a token ID.");
+  try {
+    const p = await contract.positions(id);
+    let owner = "—";
+    try {
+      if (!receiptNFT && RECEIPT_ADDRESS) receiptNFT = new ethers.Contract(RECEIPT_ADDRESS, RECEIPT_ABI, provider);
+      owner = await receiptNFT.ownerOf(id);
+    } catch {}
+    alert(`ID #${id}\nactive: ${p.active}\nprincipal: ${p.principal}\nstart: ${p.start}\nownerOf: ${owner}`);
+  } catch (e) {
+    alert((e && e.message) || String(e));
+  }
 };
+
+/* Manual positions */
+$("btnAddManual").onclick = ()=>{
+  const id = $("manualId").value.trim() || Date.now();
+  const principal = $("manualPrincipal").value.trim();
+  if (!principal || Number(principal)<=0) { alert("Enter principal TT to add manual position."); return; }
+  addOrReplacePosition({ id: String(id), principalWei: ethers.parseEther(principal).toString(), startTs: Math.floor(Date.now()/1000), txHash: "" });
+  $("manualId").value=""; $("manualPrincipal").value="";
+};
+$("btnClearLocal").onclick = ()=>{
+  if (confirm("Clear locally stored positions for this wallet + pool?")) { localStorage.removeItem(posKey()); renderPositions(); }
+};
+
+/* Wiring */
+$("btnConnect").onclick = async ()=>{
+  try{
+    await ensureReady();
+    await refreshApr();
+    await refreshBalance();
+    await initAdminSection();
+    renderPositions();
+    setHint("Connected. You can deposit now.");
+  }catch(e){
+    setHint(prettyError(e), "err"); enableActions(false);
+  }
+};
+$("btnQuickDeposit").onclick = quickDeposit;
+$("btnImport").onclick = importMyPositions;
+
+if (window.ethereum) {
+  window.ethereum.on?.("accountsChanged", async (accs) => {
+    account = accs?.[0] || undefined;
+    $("walletAddr").textContent = account || "—";
+    contract = undefined; signer = undefined;
+    enableActions(!!account);
+    if (account) {
+      await ensureReady();
+      await refreshApr();
+      await initAdminSection();
+      await refreshBalance();
+      renderPositions();
+    }
+  });
+  window.ethereum.on?.("chainChanged", async () => {
+    contract = undefined; signer = undefined; provider = new ethers.BrowserProvider(window.ethereum);
+    enableActions(false);
+    $("walletAddr").textContent = account || "—";
+  });
 }
-function hexChainId(id){ return "0x"+id.toString(16); }
-async function ensureMetamask() {
-if (!window.ethereum) throw new Error("MetaMask not found");
-}
-async function addOrSwitchNetwork() {
-const t = TEAM_CHAINS[teamSel.value];
-const params = [{
-chainId: hexChainId(t.id),
-chainName: t.name,
-rpcUrls: [t.rpc],
-nativeCurrency: { name:"ETH", symbol:"ETH", decimals:18 }
-}];
-try {
-await window.ethereum.request({ method: "wallet_switchEthereumChain", params:
-[{ chainId: params[0].chainId }] });
-} catch (e) {
-// Not added? add it.
-await window.ethereum.request({ method: "wallet_addEthereumChain", params });
-}
-}
-async function connect() {
-await ensureMetamask();
-chain = currentChain();
-// bridge viem through MetaMask (no CORS issues)
-walletClient = createWalletClient({ chain, transport: custom(window.ethereum) });
-publicClient = createPublicClient({ chain, transport: custom(window.ethereum) });
-await addOrSwitchNetwork();
-const addrs = await window.ethereum.request({ method: "eth_requestAccounts" });
-account = getAddress(addrs[0]);
-acctEl.textContent = account;
-netEl.textContent = `${chain.name} (#${chain.id})`;
-logOk("Connected. Network ready.");
-}
-async function loadToken() {
-token = getAddress(tokenInput.value.trim());
-save();
-name = await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName:
-"name" });
-symbol = await publicClient.readContract({ address: token, abi: ERC20_ABI,
-functionName: "symbol" });
-decimals = /** @type {number} */(await publicClient.readContract({ address: token, abi:
-ERC20_ABI, functionName: "decimals" }));
-metaEl.textContent = `${name} (${symbol}), ${decimals}d, ${token}`;
-logOk(`Loaded token ${symbol}`);
-// Watch transfers involving this account and refresh balance
-publicClient.watchContractEvent({
-address: token, abi: ERC20_ABI, eventName: "Transfer",
-onLogs: (logs)=>{
-for (const l of logs) {
-if (l.args.from?.toLowerCase()===account.toLowerCase() ||
-l.args.to?.toLowerCase()===account.toLowerCase()) {
-refresh();
-break;
-}
-}
-}
-});
-await refresh();
-}
-async function refresh() {
-if (!token || !account) return;
-const bal = /** @type {bigint} */(await publicClient.readContract({
-address: token, abi: ERC20_ABI, functionName: "balanceOf", args: [account]
-}));
-balEl.textContent = `${formatUnits(bal, Number(decimals))} ${symbol}`;
-}
-async function send() {
-const to = getAddress(el("to").value.trim());
-const amtStr = el("amt").value.trim();
-if (!amtStr) throw new Error("Enter amount");
-const amount = parseUnits(amtStr, Number(decimals));
-const hash = await walletClient.writeContract({
-address: token, abi: ERC20_ABI, functionName: "transfer",
-args: [to, amount],
-// mild tips (EIP-1559)
-maxPriorityFeePerGas: 2_000_000_000n,
-maxFeePerGas: 21_000_000_000n,
-account
-});
-logWarn(`Submitted: ${hash}`);
-const rcpt = await publicClient.waitForTransactionReceipt({ hash });
-logOk(`Mined in block ${rcpt.blockNumber} (gas ${rcpt.gasUsed})`);
-}
-async function watchAsset() {
-if (!token || !symbol) return;
-await window.ethereum.request({
-method: "wallet_watchAsset",
-params: { type: "ERC20", options: { address: token, symbol, decimals:
-Number(decimals) } }
-});
-logOk("Token added to MetaMask (or already present).");
-}
-// ===== Logging
-function logOk(m){ txlog.innerHTML = `<div class="ok">${escapeHtml(m)}</div>` +
-txlog.innerHTML; }
-function logWarn(m){ txlog.innerHTML = `<div class="warn">${escapeHtml(m)}</div>` +
-txlog.innerHTML; }
-function logErr(m){ txlog.innerHTML = `<div class="err">${escapeHtml(m)}</div>` +
-txlog.innerHTML; }
-function escapeHtml(s){ return s.replace(/[&<>"]/g,
-c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
-// ===== Wire up UI
-el("btnConnect").onclick = async ()=>{ try{ await connect(); }
-catch(e){ logErr(e.message||e);} };
-el("btnLoad").onclick = async ()=>{ try{ await loadToken(); }
-catch(e){ logErr(e.message||e);} };
-el("btnRefresh").onclick = async ()=>{ try{ await refresh(); }
-catch(e){ logErr(e.message||e);} };
-el("btnSend").onclick = async ()=>{ try{ await send(); }
-catch(e){ logErr(e.shortMessage||e.message||e);} };
-el("btnWatch").onclick = async ()=>{ try{ await watchAsset(); }
-catch(e){ logErr(e.message||e);} };
-// Restore from localStorage fast
-(async ()=>{
-// Pre-fill team/token if saved
-if (tokenInput.value) metaEl.textContent = `Ready to load ${tokenInput.value}`;
-})();
+
+/* live accrued ticker */
+setInterval(tickAccrued, 1000);
 </script>
 </body>
 </html>
