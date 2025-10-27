@@ -5,257 +5,619 @@
 <title>DIDLab — ERC-20 DApp</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
-html,body{font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-
-serif;margin:0;padding:0;background:#0b1320;color:#e6eaf2}
-.wrap{max-width:880px;margin:40px auto;padding:24px;border:1px solid #24314a;border-radius:14px;background:#0f1a2b}
-h1{margin:0 0 16px;font-size:22px}
-.row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
-.row > *{flex:1}
-input,select,button{padding:10px 12px;border:1px solid
-#314164;background:#0b1527;color:#e6eaf2;border-radius:10px}
-button{cursor:pointer}
-button.primary{background:#335cff;border-color:#335cff}
-.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
-.card{padding:12px;border:1px solid #24314a;border-radius:10px;background:#0b1527}
-.muted{opacity:.8}
-.ok{color:#7be07b}.warn{color:#ffd166}.err{color:#ff6b6b}
-a{color:#9bc1ff}
-.kvs{display:grid;grid-template-columns:180px 1fr;gap:8px}
-.kvs div{padding:6px 8px;border-bottom:1px dashed #22314e}
+  html,body{
+    font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+    margin:0;padding:0;background:#0b1320;color:#e6eaf2
+  }
+  .wrap{max-width:980px;margin:40px auto;padding:24px;border:1px solid #24314a;border-radius:14px;background:#0f1a2b}
+  h1{margin:0 0 16px;font-size:22px}
+  .row{display:flex;gap:12px;flex-wrap:wrap;margin:8px 0}
+  .row > *{flex:1}
+  input,select,button,textarea{padding:10px 12px;border:1px solid #314164;background:#0b1527;color:#e6eaf2;border-radius:10px}
+  textarea{min-height:84px}
+  input::placeholder,textarea::placeholder{color:#9aa9c6}
+  button{cursor:pointer}
+  button.primary{background:#335cff;border-color:#335cff}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  .card{padding:12px;border:1px solid #24314a;border-radius:10px;background:#0b1527}
+  .muted{opacity:.8}
+  .ok{color:#7be07b}.warn{color:#ffd166}.err{color:#ff6b6b}
+  a{color:#9bc1ff}
+  .kvs{display:grid;grid-template-columns:180px 1fr;gap:8px}
+  .kvs div{padding:6px 8px;border-bottom:1px dashed #22314e}
+  .hint{font-size:12px;opacity:.8;margin-top:4px}
+  .split{display:grid;grid-template-columns:1fr;gap:12px}
+  @media (min-width: 900px){ .split{grid-template-columns:1fr 1fr} }
+  .label{font-size:12px;opacity:.9;margin-bottom:4px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>￿ DIDLab — ERC-20 DApp</h1>
-<!-- CONFIG -->
-<div class="card">
-<div class="row">
-<div>
-<label>Team</label>
-<select id="team">
-<option>01</option><option>02</option><option>03</option><option>04</option>
-<option>05</option><option>06</option><option>07</option><option>08</option>
-<option>09</option><option>10</option><option>11</option><option>12</option>
-</select>
+  <h1>DIDLab — ERC-20 DApp</h1>
+
+  <!-- CONFIG -->
+  <div class="card">
+    <div class="row">
+      <div>
+        <label>Team</label>
+        <select id="team">
+          <option>01</option><option>02</option><option>03</option><option>04</option>
+          <option>05</option><option>06</option><option>07</option><option>08</option>
+          <option>09</option><option>10</option><option>11</option><option>12</option>
+        </select>
+        <div class="hint">Select your DIDLab team (sets RPC & chainId)</div>
+      </div>
+      <div>
+        <label>Token Address</label>
+        <input id="tokenAddr" class="mono" placeholder="0x..." />
+        <div class="hint">Paste your deployed ERC-20 address, then “Load Token”.</div>
+      </div>
+    </div>
+    <div class="row">
+      <button id="btnConnect" class="primary">1) Connect & Switch Network</button>
+      <button id="btnLoad" disabled>2) Load Token</button>
+      <button id="btnWatch" disabled>Add Token to MetaMask</button>
+      <button id="btnRefresh" disabled>Refresh Balance</button>
+    </div>
+  </div>
+
+  <!-- STATUS -->
+  <div class="row">
+    <div class="card" style="flex:1">
+      <div class="kvs">
+        <div class="muted">Account</div><div id="acct" class="mono">—</div>
+        <div class="muted">Network</div><div id="net" class="mono">—</div>
+        <div class="muted">Token</div><div id="meta" class="mono">—</div>
+        <div class="muted">Balance</div><div id="bal" class="mono">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRANSFER -->
+  <div class="card">
+    <h3>Transfer</h3>
+    <div class="row">
+      <input id="to" class="mono" placeholder="Recipient 0x..." />
+      <input id="amt" class="mono" placeholder="Amount (human units)" />
+      <button id="btnSend" class="primary" disabled>Send</button>
+    </div>
+    <div class="row" style="align-items:center">
+      <label style="flex:0;display:flex;gap:8px;align-items:center">
+        <input type="checkbox" id="chkFees" />
+        Use custom gas tips (advanced)
+      </label>
+      <input id="tipPriority" class="mono" placeholder="maxPriorityFeePerGas (gwei)" disabled />
+      <input id="tipMax" class="mono" placeholder="maxFeePerGas (gwei)" disabled />
+    </div>
+    <div id="txlog" class="mono muted"></div>
+  </div>
+
+  <!-- ADMIN: Endorsed Mint / Airdrop -->
+  <div class="card">
+    <h3>Admin — Endorsed Mint / Airdrop (EIP-712)</h3>
+    <div class="hint">
+      Gateway/endorser signs a typed <span class="mono">Action</span> binding the <b>caller (minter)</b>, then the minter submits it.
+      Requires contract with <span class="mono">ENDORSER_ROLE</span>, <span class="mono">mintEndorsed</span>/<span class="mono">airdropEndorsed</span>, <span class="mono">ACTION_MINT</span>/<span class="mono">ACTION_AIRDROP</span>, and <span class="mono">nonces(address)</span>.
+    </div>
+
+    <div class="split">
+      <!-- Left: Build & Sign Endorsement (Gateway) -->
+      <div>
+        <div class="label">Caller (minter) address the signature is bound to</div>
+        <div class="row">
+          <input id="endorseCaller" class="mono" placeholder="0x... (minter address)" />
+          <button id="btnUseMyAddr">Use my address</button>
+        </div>
+
+        <div class="row">
+          <label style="flex:0;display:flex;gap:6px;align-items:center">
+            <input type="radio" name="endorseMode" value="mint" checked /> Mint
+          </label>
+          <label style="flex:0;display:flex;gap:6px;align-items:center">
+            <input type="radio" name="endorseMode" value="airdrop" /> Airdrop
+          </label>
+        </div>
+
+        <div id="mintFields">
+          <div class="row">
+            <input id="endorseTo" class="mono" placeholder="Recipient 0x..." />
+            <input id="endorseAmt" class="mono" placeholder="Amount (human units)" />
+          </div>
+        </div>
+
+        <div id="airdropFields" style="display:none">
+          <div class="row">
+            <textarea id="endorseToCSV" class="mono" placeholder="Recipients (CSV or one per line)"></textarea>
+            <textarea id="endorseAmtCSV" class="mono" placeholder="Amounts (CSV or one per line)"></textarea>
+          </div>
+        </div>
+
+        <div class="row">
+          <input id="endorseDeadlineMin" class="mono" placeholder="Deadline minutes (default 10)" />
+          <button id="btnSignEndorsement" class="primary" disabled>Sign endorsement (Gateway)</button>
+        </div>
+        <div class="kvs">
+          <div class="muted">Action</div><div id="endorseActionLbl" class="mono">—</div>
+          <div class="muted">Nonce (from contract)</div><div id="endorseNonce" class="mono">—</div>
+          <div class="muted">Payload hash</div><div id="endorsePayloadHash" class="mono" style="word-break:break-all">—</div>
+          <div class="muted">Deadline (unix)</div><div id="endorseDeadlineOut" class="mono">—</div>
+        </div>
+        <div class="row">
+          <textarea id="endorseSig" class="mono" placeholder="Signature 0x... (auto-filled after signing)"></textarea>
+        </div>
+      </div>
+
+      <!-- Right: Submit Endorsed Tx (Minter) -->
+      <div>
+        <div class="label">Submit with MINTER_ROLE</div>
+        <div class="row">
+          <button id="btnSubmitMintEndorsed" disabled>Submit Mint (endorsed)</button>
+          <button id="btnSubmitAirdropEndorsed" disabled>Submit Airdrop (endorsed)</button>
+        </div>
+        <div class="hint">
+          Uses the signature above. For airdrop, it also reads the CSV fields.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="muted">Tip: values persist in localStorage.</p>
 </div>
-<div>
-<label>Token Address</label>
-<input id="tokenAddr" class="mono" placeholder="0x..." />
-</div>
-</div>
-<div class="row">
-<button id="btnConnect" class="primary">1) Connect & Switch Network</button>
-<button id="btnLoad">2) Load Token</button>
-<button id="btnWatch">Add Token to MetaMask</button>
-<button id="btnRefresh">Refresh Balance</button>
-</div>
-</div>
-<!-- STATUS -->
-<div class="row">
-<div class="card">
-<div class="kvs">
-<div class="muted">Account</div><div id="acct" class="mono">—</div>
-<div class="muted">Network</div><div id="net" class="mono">—</div>
-<div class="muted">Token</div><div id="meta" class="mono">—</div>
-<div class="muted">Balance</div><div id="bal" class="mono">—</div>
-</div>
-</div>
-</div>
-<!-- TRANSFER -->
-<div class="card">
-<h3>Transfer</h3>
-<div class="row">
-<input id="to" class="mono" placeholder="Recipient 0x..." />
-<input id="amt" class="mono" placeholder="Amount (human units)" />
-<button id="btnSend" class="primary">Send</button>
-</div>
-<div id="txlog" class="mono muted"></div>
-</div>
-<p class="muted">Tip: values persist in localStorage.</p>
-</div>
+
 <script type="module">
-// ===== Imports (no build step)
+/* ===== Imports (no build step) */
 import {
-createPublicClient, createWalletClient, custom,
-getAddress, formatUnits, parseUnits
+  createPublicClient, createWalletClient, custom,
+  getAddress, formatUnits, parseUnits, parseGwei,
+  keccak256, encodeAbiParameters, encodePacked
 } from "https://esm.sh/viem@2.37.5";
-// ===== Minimal ERC-20 ABI
+
+/* ===== Minimal ERC-20 + Endorsement ABI */
 const ERC20_ABI = [
-{ type:"function", name:"name", stateMutability:"view", inputs:[],
-outputs:[{type:"string"}]},
-{ type:"function", name:"symbol", stateMutability:"view", inputs:[],
-outputs:[{type:"string"}]},
-{ type:"function", name:"decimals",stateMutability:"view", inputs:[],
-outputs:[{type:"uint8"}]},
-{ type:"function", name:"balanceOf", stateMutability:"view",
-inputs:[{name:"account",type:"address"}], outputs:[{type:"uint256"}]},
-{ type:"function", name:"transfer", stateMutability:"nonpayable",
-inputs:[{name:"to",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}]},
-{ type:"event", name:"Transfer", inputs:[
-{indexed:true, name:"from", type:"address"},
-{indexed:true, name:"to", type:"address"},
-{indexed:false,name:"value",type:"uint256"}
-]},
+  // ERC20
+  { type:"function", name:"name",    stateMutability:"view",  inputs:[], outputs:[{type:"string"}]},
+  { type:"function", name:"symbol",  stateMutability:"view",  inputs:[], outputs:[{type:"string"}]},
+  { type:"function", name:"decimals",stateMutability:"view",  inputs:[], outputs:[{type:"uint8"}]},
+  { type:"function", name:"balanceOf", stateMutability:"view",
+    inputs:[{name:"account",type:"address"}], outputs:[{type:"uint256"}]},
+  { type:"function", name:"transfer", stateMutability:"nonpayable",
+    inputs:[{name:"to",type:"address"},{name:"amount",type:"uint256"}], outputs:[{type:"bool"}]},
+  { type:"event", name:"Transfer", inputs:[
+    {indexed:true, name:"from", type:"address"},
+    {indexed:true, name:"to",   type:"address"},
+    {indexed:false,name:"value",type:"uint256"}
+  ]},
+  // Endorsement bits (from your BankMintToken w/ EIP-712)
+  { type:"function", name:"ACTION_MINT",    stateMutability:"view", inputs:[], outputs:[{type:"bytes32"}]},
+  { type:"function", name:"ACTION_AIRDROP", stateMutability:"view", inputs:[], outputs:[{type:"bytes32"}]},
+  { type:"function", name:"nonces", stateMutability:"view", inputs:[{type:"address"}], outputs:[{type:"uint256"}]},
+  { type:"function", name:"mintEndorsed", stateMutability:"nonpayable",
+    inputs:[{type:"address"},{type:"uint256"},{type:"uint256"},{type:"bytes"}], outputs:[]},
+  { type:"function", name:"airdropEndorsed", stateMutability:"nonpayable",
+    inputs:[{type:"address[]"},{"type":"uint256[]"},{"type":"uint256"},{"type":"bytes"}], outputs:[]},
 ];
-// ===== Team → RPC/Chain config
+
+/* ===== Team → RPC/Chain config */
 const TEAM_CHAINS = {
-"01": { id: 31337, name:"DIDLab Team 01", rpc:"https://hh-01.didlab.org" },
-"02": { id: 31338, name:"DIDLab Team 02", rpc:"https://hh-02.didlab.org" },
-"03": { id: 31339, name:"DIDLab Team 03", rpc:"https://hh-03.didlab.org" },
-"04": { id: 31340, name:"DIDLab Team 04", rpc:"https://hh-04.didlab.org" },
-"05": { id: 31341, name:"DIDLab Team 05", rpc:"https://hh-05.didlab.org" },
-"06": { id: 31342, name:"DIDLab Team 06", rpc:"https://hh-06.didlab.org" },
-"07": { id: 31343, name:"DIDLab Team 07", rpc:"https://hh-07.didlab.org" },
-"08": { id: 31344, name:"DIDLab Team 08", rpc:"https://hh-08.didlab.org" },
-"09": { id: 31345, name:"DIDLab Team 09", rpc:"https://hh-09.didlab.org" },
-"10": { id: 31346, name:"DIDLab Team 10", rpc:"https://hh-10.didlab.org" },
-"11": { id: 31347, name:"DIDLab Team 11", rpc:"https://hh-11.didlab.org" },
-"12": { id: 31348, name:"DIDLab Team 12", rpc:"https://hh-12.didlab.org" },
+  "01": { id: 31337, name:"DIDLab Team 01", rpc:"https://hh-01.didlab.org" },
+  "02": { id: 31338, name:"DIDLab Team 02", rpc:"https://hh-02.didlab.org" },
+  "03": { id: 31339, name:"DIDLab Team 03", rpc:"https://hh-03.didlab.org" },
+  "04": { id: 31340, name:"DIDLab Team 04", rpc:"https://hh-04.didlab.org" },
+  "05": { id: 31341, name:"DIDLab Team 05", rpc:"https://hh-05.didlab.org" },
+  "06": { id: 31342, name:"DIDLab Team 06", rpc:"https://hh-06.didlab.org" },
+  "07": { id: 31343, name:"DIDLab Team 07", rpc:"https://hh-07.didlab.org" },
+  "08": { id: 31344, name:"DIDLab Team 08", rpc:"https://hh-08.didlab.org" },
+  "09": { id: 31345, name:"DIDLab Team 09", rpc:"https://hh-09.didlab.org" },
+  "10": { id: 31346, name:"DIDLab Team 10", rpc:"https://hh-10.didlab.org" },
+  "11": { id: 31347, name:"DIDLab Team 11", rpc:"https://hh-11.didlab.org" },
+  "12": { id: 31348, name:"DIDLab Team 12", rpc:"https://hh-12.didlab.org" },
 };
-// ===== UI elements
+
+/* ===== UI elements */
 const el = (id)=>document.getElementById(id);
 const teamSel = el("team");
 const tokenInput = el("tokenAddr");
 const acctEl = el("acct"), netEl = el("net"), metaEl = el("meta"), balEl = el("bal");
 const txlog = el("txlog");
-// ===== State
+const btnConnect = el("btnConnect");
+const btnLoad = el("btnLoad");
+const btnWatch = el("btnWatch");
+const btnRefresh = el("btnRefresh");
+const btnSend = el("btnSend");
+const chkFees = el("chkFees");
+const tipPriority = el("tipPriority");
+const tipMax = el("tipMax");
+// Admin/endorsement
+const endorseCaller = el("endorseCaller");
+const btnUseMyAddr = el("btnUseMyAddr");
+const btnSignEndorsement = el("btnSignEndorsement");
+const endorseDeadlineMin = el("endorseDeadlineMin");
+const endorseActionLbl = el("endorseActionLbl");
+const endorseNonce = el("endorseNonce");
+const endorsePayloadHash = el("endorsePayloadHash");
+const endorseDeadlineOut = el("endorseDeadlineOut");
+const endorseSig = el("endorseSig");
+const mintFields = document.getElementById("mintFields");
+const airdropFields = document.getElementById("airdropFields");
+const btnSubmitMintEndorsed = el("btnSubmitMintEndorsed");
+const btnSubmitAirdropEndorsed = el("btnSubmitAirdropEndorsed");
+const endorseTo = el("endorseTo");
+const endorseAmt = el("endorseAmt");
+const endorseToCSV = el("endorseToCSV");
+const endorseAmtCSV = el("endorseAmtCSV");
+
+/* ===== State */
 let chain, token, decimals=18, symbol="ETH", name="ETH";
 let walletClient, publicClient, account;
-// ===== Load/save simple prefs
+let unwatchTransfers = null;
+let ACTION_MINT = null, ACTION_AIRDROP = null;
+
+/* ===== Load/save simple prefs */
 const saved = JSON.parse(localStorage.getItem("didlab-ui")||"{}");
 if (saved.team) teamSel.value = saved.team;
 if (saved.token) tokenInput.value = saved.token;
+
 function save() {
-localStorage.setItem("didlab-ui", JSON.stringify({
-team: teamSel.value, token: tokenInput.value
-}));
+  localStorage.setItem("didlab-ui", JSON.stringify({
+    team: teamSel.value, token: tokenInput.value
+  }));
 }
-// ===== Chain helpers
+
+/* enable/disable helpers */
+function setConnectedUI(connected) {
+  btnLoad.disabled   = !connected;
+  btnRefresh.disabled= !connected;
+}
+function setTokenLoadedUI(loaded) {
+  btnWatch.disabled = !loaded;
+  btnSend.disabled  = !loaded;
+  btnSignEndorsement.disabled = !loaded;
+  btnSubmitMintEndorsed.disabled = !loaded;
+  btnSubmitAirdropEndorsed.disabled = !loaded;
+}
+
+/* ===== Chain helpers */
 function currentChain() {
-const t = TEAM_CHAINS[teamSel.value];
-return {
-id: t.id,
-name: t.name,
-nativeCurrency: { name:"ETH", symbol:"ETH", decimals:18 },
-rpcUrls: { default: { http: [t.rpc] } }
-};
+  const t = TEAM_CHAINS[teamSel.value];
+  return {
+    id: t.id,
+    name: t.name,
+    nativeCurrency: { name:"ETH", symbol:"ETH", decimals:18 },
+    rpcUrls: { default: { http: [t.rpc] } }
+  };
 }
 function hexChainId(id){ return "0x"+id.toString(16); }
+
 async function ensureMetamask() {
-if (!window.ethereum) throw new Error("MetaMask not found");
+  if (!window.ethereum) throw new Error("MetaMask not found");
 }
+
 async function addOrSwitchNetwork() {
-const t = TEAM_CHAINS[teamSel.value];
-const params = [{
-chainId: hexChainId(t.id),
-chainName: t.name,
-rpcUrls: [t.rpc],
-nativeCurrency: { name:"ETH", symbol:"ETH", decimals:18 }
-}];
-try {
-await window.ethereum.request({ method: "wallet_switchEthereumChain", params:
-[{ chainId: params[0].chainId }] });
-} catch (e) {
-// Not added? add it.
-await window.ethereum.request({ method: "wallet_addEthereumChain", params });
+  const t = TEAM_CHAINS[teamSel.value];
+  const params = [{
+    chainId: hexChainId(t.id),
+    chainName: t.name,
+    rpcUrls: [t.rpc],
+    nativeCurrency: { name:"ETH", symbol:"ETH", decimals:18 }
+  }];
+  try {
+    await window.ethereum.request({
+      method: "wallet_switchEthereumChain",
+      params: [{ chainId: params[0].chainId }]
+    });
+  } catch (e) {
+    await window.ethereum.request({ method: "wallet_addEthereumChain", params });
+  }
 }
-}
+
 async function connect() {
-await ensureMetamask();
-chain = currentChain();
-// bridge viem through MetaMask (no CORS issues)
-walletClient = createWalletClient({ chain, transport: custom(window.ethereum) });
-publicClient = createPublicClient({ chain, transport: custom(window.ethereum) });
-await addOrSwitchNetwork();
-const addrs = await window.ethereum.request({ method: "eth_requestAccounts" });
-account = getAddress(addrs[0]);
-acctEl.textContent = account;
-netEl.textContent = `${chain.name} (#${chain.id})`;
-logOk("Connected. Network ready.");
+  await ensureMetamask();
+  chain = currentChain();
+  walletClient = createWalletClient({ chain, transport: custom(window.ethereum) });
+  publicClient = createPublicClient({ chain, transport: custom(window.ethereum) });
+
+  await addOrSwitchNetwork();
+
+  const addrs = await window.ethereum.request({ method: "eth_requestAccounts" });
+  account = getAddress(addrs[0]);
+  acctEl.textContent = account;
+  netEl.textContent = `${chain.name} (#${chain.id})`;
+  setConnectedUI(true);
+  logOk("Connected. Network ready.");
 }
+
+/* ===== Contract utilities */
+function parseAddressOrThrow(s, label){
+  try { return getAddress(s.trim()); } catch { throw new Error(`${label} is not a valid address`); }
+}
+function sanitizeAmountInput(s) {
+  s = s.replace(/,/g, "").trim();
+  if (!/^(\d+(\.\d*)?|\.\d+)$/.test(s)) throw new Error("Amount must be a decimal number");
+  return s;
+}
+function splitCSVorLines(s){
+  return s.split(/[\n,]+/).map(x=>x.trim()).filter(Boolean);
+}
+
 async function loadToken() {
-token = getAddress(tokenInput.value.trim());
-save();
-name = await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName:
-"name" });
-symbol = await publicClient.readContract({ address: token, abi: ERC20_ABI,
-functionName: "symbol" });
-decimals = /** @type {number} */(await publicClient.readContract({ address: token, abi:
-ERC20_ABI, functionName: "decimals" }));
-metaEl.textContent = `${name} (${symbol}), ${decimals}d, ${token}`;
-logOk(`Loaded token ${symbol}`);
-// Watch transfers involving this account and refresh balance
-publicClient.watchContractEvent({
-address: token, abi: ERC20_ABI, eventName: "Transfer",
-onLogs: (logs)=>{
-for (const l of logs) {
-if (l.args.from?.toLowerCase()===account.toLowerCase() ||
-l.args.to?.toLowerCase()===account.toLowerCase()) {
-refresh();
-break;
+  const addrStr = tokenInput.value.trim();
+  if (!addrStr) throw new Error("Enter a token address");
+  try {
+    token = getAddress(addrStr);
+  } catch {
+    throw new Error("Token address is not a valid EVM address");
+  }
+  save();
+
+  name = await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: "name" });
+  symbol = await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: "symbol" });
+  decimals = Number(await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: "decimals" }));
+
+  // Try to read endorsement constants if present
+  try {
+    ACTION_MINT = await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: "ACTION_MINT" });
+    ACTION_AIRDROP = await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: "ACTION_AIRDROP" });
+  } catch {
+    ACTION_MINT = null; ACTION_AIRDROP = null;
+  }
+
+  metaEl.textContent = `${name} (${symbol}), ${decimals}d, ${token}`;
+  logOk(`Loaded token ${symbol}${ACTION_MINT ? " (endorsed ops available)" : ""}`);
+
+  if (typeof unwatchTransfers === "function") { unwatchTransfers(); unwatchTransfers = null; }
+  unwatchTransfers = publicClient.watchContractEvent({
+    address: token, abi: ERC20_ABI, eventName: "Transfer",
+    onLogs: (logs)=>{
+      for (const l of logs) {
+        const from = l.args.from?.toLowerCase?.();
+        const to   = l.args.to?.toLowerCase?.();
+        if (from === account.toLowerCase() || to === account.toLowerCase()) {
+          refresh();
+          break;
+        }
+      }
+    }
+  });
+
+  await refresh();
+  setTokenLoadedUI(true);
 }
-}
-}
-});
-await refresh();
-}
+
 async function refresh() {
-if (!token || !account) return;
-const bal = /** @type {bigint} */(await publicClient.readContract({
-address: token, abi: ERC20_ABI, functionName: "balanceOf", args: [account]
-}));
-balEl.textContent = `${formatUnits(bal, Number(decimals))} ${symbol}`;
+  if (!token || !account) return;
+  const bal = /** @type {bigint} */(await publicClient.readContract({
+    address: token, abi: ERC20_ABI, functionName: "balanceOf", args: [account]
+  }));
+  balEl.textContent = `${formatUnits(bal, decimals)} ${symbol}`;
 }
+
 async function send() {
-const to = getAddress(el("to").value.trim());
-const amtStr = el("amt").value.trim();
-if (!amtStr) throw new Error("Enter amount");
-const amount = parseUnits(amtStr, Number(decimals));
-const hash = await walletClient.writeContract({
-address: token, abi: ERC20_ABI, functionName: "transfer",
-args: [to, amount],
-// mild tips (EIP-1559)
-maxPriorityFeePerGas: 2_000_000_000n,
-maxFeePerGas: 21_000_000_000n,
-account
-});
-logWarn(`Submitted: ${hash}`);
-const rcpt = await publicClient.waitForTransactionReceipt({ hash });
-logOk(`Mined in block ${rcpt.blockNumber} (gas ${rcpt.gasUsed})`);
+  if (!token) throw new Error("Load a token first");
+  const to = parseAddressOrThrow(el("to").value, "Recipient");
+  const amtStr = sanitizeAmountInput(el("amt").value);
+  let amount;
+  try { amount = parseUnits(amtStr, decimals); }
+  catch { throw new Error(`Amount "${amtStr}" cannot be parsed with ${decimals} decimals`); }
+
+  let feeOpts = {};
+  if (chkFees.checked) {
+    if (!tipPriority.value || !tipMax.value) throw new Error("Enter both gas tip fields or uncheck 'custom gas'");
+    feeOpts = {
+      maxPriorityFeePerGas: parseGwei(tipPriority.value.trim()),
+      maxFeePerGas:         parseGwei(tipMax.value.trim())
+    };
+  }
+
+  const hash = await walletClient.writeContract({
+    address: token, abi: ERC20_ABI, functionName: "transfer",
+    args: [to, amount], account, ...feeOpts
+  });
+  logWarn(`Submitted: ${hash}`);
+  const rcpt = await publicClient.waitForTransactionReceipt({ hash });
+  logOk(`Mined in block ${rcpt.blockNumber} (gas ${rcpt.gasUsed})`);
 }
+
 async function watchAsset() {
-if (!token || !symbol) return;
-await window.ethereum.request({
-method: "wallet_watchAsset",
-params: { type: "ERC20", options: { address: token, symbol, decimals:
-Number(decimals) } }
-});
-logOk("Token added to MetaMask (or already present).");
+  if (!token || !symbol) return;
+  await window.ethereum.request({
+    method: "wallet_watchAsset",
+    params: { type: "ERC20", options: { address: token, symbol, decimals } }
+  });
+  logOk("Token added to MetaMask (or already present).");
 }
-// ===== Logging
-function logOk(m){ txlog.innerHTML = `<div class="ok">${escapeHtml(m)}</div>` +
-txlog.innerHTML; }
-function logWarn(m){ txlog.innerHTML = `<div class="warn">${escapeHtml(m)}</div>` +
-txlog.innerHTML; }
-function logErr(m){ txlog.innerHTML = `<div class="err">${escapeHtml(m)}</div>` +
-txlog.innerHTML; }
-function escapeHtml(s){ return s.replace(/[&<>"]/g,
-c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
-// ===== Wire up UI
-el("btnConnect").onclick = async ()=>{ try{ await connect(); }
-catch(e){ logErr(e.message||e);} };
-el("btnLoad").onclick = async ()=>{ try{ await loadToken(); }
-catch(e){ logErr(e.message||e);} };
-el("btnRefresh").onclick = async ()=>{ try{ await refresh(); }
-catch(e){ logErr(e.message||e);} };
-el("btnSend").onclick = async ()=>{ try{ await send(); }
-catch(e){ logErr(e.shortMessage||e.message||e);} };
-el("btnWatch").onclick = async ()=>{ try{ await watchAsset(); }
-catch(e){ logErr(e.message||e);} };
-// Restore from localStorage fast
+
+/* ===== Endorsement helpers (EIP-712) */
+function getSelectedMode(){
+  return [...document.getElementsByName("endorseMode")].find(r=>r.checked)?.value || "mint";
+}
+function minutesToDeadline(mins){
+  const m = Number(mins || 10);
+  const now = Math.floor(Date.now()/1000);
+  return now + Math.max(1, Math.floor(m*60));
+}
+function hashMintPayload(to, amountWei){
+  // payloadHash = keccak256(abi.encode(address,uint256))
+  return keccak256(encodeAbiParameters(
+    [{type:"address"},{type:"uint256"}],
+    [to, amountWei]
+  ));
+}
+function hashAirdropPayload(toArr, amtArrWei){
+  // toHash = keccak256(abi.encodePacked(address[]))
+  const toPacked = encodePacked(["address[]"], [toArr]);
+  const toHash = keccak256(toPacked);
+  // amountsHash = keccak256(abi.encodePacked(uint256[]))
+  const amtPacked = encodePacked(["uint256[]"], [amtArrWei]);
+  const amountsHash = keccak256(amtPacked);
+  // payloadHash = keccak256(abi.encode(bytes32,bytes32))
+  return keccak256(encodeAbiParameters(
+    [{type:"bytes32"},{type:"bytes32"}],
+    [toHash, amountsHash]
+  ));
+}
+
+async function fetchNonce(caller){
+  try {
+    const n = await publicClient.readContract({ address: token, abi: ERC20_ABI, functionName: "nonces", args:[caller] });
+    return BigInt(n);
+  } catch {
+    throw new Error("Contract does not expose nonces(caller). Is the endorsed version deployed?");
+  }
+}
+
+async function signEndorsement(){
+  if (!token) throw new Error("Load a token first");
+  if (!ACTION_MINT || !ACTION_AIRDROP) throw new Error("Contract lacks ACTION_* constants. Deploy the endorsed version.");
+
+  const caller = parseAddressOrThrow(endorseCaller.value || account, "Caller (minter)");
+  const mode = getSelectedMode();
+
+  let payloadHash, actionId;
+
+  if (mode === "mint") {
+    const to = parseAddressOrThrow(endorseTo.value, "Mint recipient");
+    const amtStr = sanitizeAmountInput(endorseAmt.value);
+    const amountWei = parseUnits(amtStr, decimals);
+    payloadHash = hashMintPayload(to, amountWei);
+    actionId = ACTION_MINT;
+    endorseActionLbl.textContent = "MINT";
+  } else {
+    const tos = splitCSVorLines(endorseToCSV.value).map((x,i)=>parseAddressOrThrow(x, `Recipient[${i}]`));
+    const amts = splitCSVorLines(endorseAmtCSV.value).map((x,i)=>{
+      const s = sanitizeAmountInput(x);
+      try { return parseUnits(s, decimals); } catch { throw new Error(`Amount[${i}] cannot be parsed`); }
+    });
+    if (tos.length !== amts.length) throw new Error("Recipients and amounts lengths differ");
+    payloadHash = hashAirdropPayload(tos, amts);
+    actionId = ACTION_AIRDROP;
+    endorseActionLbl.textContent = "AIRDROP";
+  }
+
+  const nonce = await fetchNonce(caller);
+  const deadline = minutesToDeadline(endorseDeadlineMin.value);
+
+  endorseNonce.textContent = String(nonce);
+  endorsePayloadHash.textContent = payloadHash;
+  endorseDeadlineOut.textContent = String(deadline);
+
+  const domain = {
+    name: "BankMintToken-Endorsement",
+    version: "1",
+    chainId: chain.id,
+    verifyingContract: token,
+  };
+  const types = {
+    Action: [
+      { name: "caller",      type: "address" },
+      { name: "actionId",    type: "bytes32" },
+      { name: "payloadHash", type: "bytes32" },
+      { name: "nonce",       type: "uint256" },
+      { name: "deadline",    type: "uint256" },
+    ],
+  };
+  const message = { caller, actionId, payloadHash, nonce, deadline };
+
+  const sig = await walletClient.signTypedData({
+    account, domain, types, primaryType: "Action", message
+  });
+
+  endorseSig.value = sig;
+  logOk("Endorsement signed (copy signature to submit on minter side).");
+}
+
+async function submitMintEndorsed(){
+  if (!token) throw new Error("Load a token first");
+  const to = parseAddressOrThrow(endorseTo.value, "Mint recipient");
+  const amtStr = sanitizeAmountInput(endorseAmt.value);
+  const amountWei = parseUnits(amtStr, decimals);
+  const deadline = minutesToDeadline(endorseDeadlineMin.value);
+  const sig = endorseSig.value.trim();
+  if (!/^0x[0-9a-fA-F]+$/.test(sig)) throw new Error("Signature must be 0x-prefixed hex");
+  const hash = await walletClient.writeContract({
+    address: token, abi: ERC20_ABI, functionName: "mintEndorsed",
+    args: [to, amountWei, BigInt(deadline), sig], account
+  });
+  logWarn(`Submitted mintEndorsed: ${hash}`);
+  const rcpt = await publicClient.waitForTransactionReceipt({ hash });
+  logOk(`Mint endorsed mined in block ${rcpt.blockNumber} (gas ${rcpt.gasUsed})`);
+}
+
+async function submitAirdropEndorsed(){
+  if (!token) throw new Error("Load a token first");
+  const tos = splitCSVorLines(endorseToCSV.value).map((x,i)=>parseAddressOrThrow(x, `Recipient[${i}]`));
+  const amts = splitCSVorLines(endorseAmtCSV.value).map((x,i)=>{
+    const s = sanitizeAmountInput(x);
+    try { return parseUnits(s, decimals); } catch { throw new Error(`Amount[${i}] cannot be parsed`); }
+  });
+  if (tos.length !== amts.length) throw new Error("Recipients and amounts lengths differ");
+
+  const deadline = minutesToDeadline(endorseDeadlineMin.value);
+  const sig = endorseSig.value.trim();
+  if (!/^0x[0-9a-fA-F]+$/.test(sig)) throw new Error("Signature must be 0x-prefixed hex");
+
+  const hash = await walletClient.writeContract({
+    address: token, abi: ERC20_ABI, functionName: "airdropEndorsed",
+    args: [tos, amts, BigInt(deadline), sig], account
+  });
+  logWarn(`Submitted airdropEndorsed: ${hash}`);
+  const rcpt = await publicClient.waitForTransactionReceipt({ hash });
+  logOk(`Airdrop endorsed mined in block ${rcpt.blockNumber} (gas ${rcpt.gasUsed})`);
+}
+
+/* ===== Logging */
+function logOk(m){ txlog.innerHTML = `<div class="ok">${escapeHtml(String(m))}</div>` + txlog.innerHTML; }
+function logWarn(m){ txlog.innerHTML = `<div class="warn">${escapeHtml(String(m))}</div>` + txlog.innerHTML; }
+function logErr(m){ txlog.innerHTML = `<div class="err">${escapeHtml(String(m))}</div>` + txlog.innerHTML; }
+function escapeHtml(s){ return s.replace(/[&<>"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c])); }
+
+/* ===== Wire up UI */
+btnConnect.onclick = async ()=>{ try{ await connect(); } catch(e){ logErr(e.message||e);} };
+btnLoad.onclick    = async ()=>{ try{ await loadToken(); } catch(e){ logErr(e.message||e);} };
+btnRefresh.onclick = async ()=>{ try{ await refresh(); } catch(e){ logErr(e.message||e);} };
+btnSend.onclick    = async ()=>{ try{ await send(); } catch(e){ logErr(e.shortMessage||e.message||e);} };
+btnWatch.onclick   = async ()=>{ try{ await watchAsset(); } catch(e){ logErr(e.message||e);} };
+
+chkFees.addEventListener("change", ()=>{
+  const enabled = chkFees.checked;
+  tipPriority.disabled = !enabled;
+  tipMax.disabled = !enabled;
+});
+
+/* Admin wiring */
+btnUseMyAddr.onclick = ()=>{
+  endorseCaller.value = account || "";
+};
+
+btnSignEndorsement.onclick = async ()=>{
+  try{
+    await signEndorsement();
+  }catch(e){ logErr(e.shortMessage||e.message||e); }
+};
+btnSubmitMintEndorsed.onclick = async ()=>{
+  try{
+    await submitMintEndorsed();
+  }catch(e){ logErr(e.shortMessage||e.message||e); }
+};
+btnSubmitAirdropEndorsed.onclick = async ()=>{
+  try{
+    await submitAirdropEndorsed();
+  }catch(e){ logErr(e.shortMessage||e.message||e); }
+};
+
+/* Toggle fields for mode */
+for (const r of document.getElementsByName("endorseMode")) {
+  r.addEventListener("change", ()=>{
+    const mode = getSelectedMode();
+    mintFields.style.display = (mode==="mint") ? "" : "none";
+    airdropFields.style.display = (mode==="airdrop") ? "" : "none";
+    endorseActionLbl.textContent = mode.toUpperCase();
+  });
+}
+
+/* Restore from localStorage fast */
 (async ()=>{
-// Pre-fill team/token if saved
-if (tokenInput.value) metaEl.textContent = `Ready to load ${tokenInput.value}`;
+  if (tokenInput.value) metaEl.textContent = `Ready to load ${tokenInput.value}`;
 })();
 </script>
 </body>
