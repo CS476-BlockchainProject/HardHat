@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>OpenGrant — Apply for Funding</title>
+<title>Community Grants — Apply for Funding</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <style>
   :root{
@@ -14,13 +14,13 @@
     font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
   header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10}
   .wrap{max-width:980px;margin:0 auto;padding:16px}
-  .brand{display:flex;gap:12px;align-items:center}
+  .brand{display:flex;gap:12px;align-items:center;justify-content:space-between}
   .logo{width:12px;height:12px;border-radius:50%;background:var(--accent)}
   h1{font-size:20px;margin:0}
   main.wrap{padding-top:24px;padding-bottom:48px}
   .grid{display:grid;gap:16px;grid-template-columns:1fr}
   @media(min-width:980px){.grid{grid-template-columns:1.2fr 1fr}}
-  .stack{display:grid;gap:16px} /* right column stack */
+  .stack{display:grid;gap:16px}
   .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
   .card h2{margin:0 0 12px 0;font-size:18px}
   .card h3{margin:10px 0 6px 0;font-size:16px}
@@ -76,7 +76,9 @@
       <label>GrantProposal Contract Address</label>
       <div class="row">
         <input id="inAddr" placeholder="0x..." />
+        <button class="btn" id="btnSaveAddr">Save</button>
       </div>
+      <div class="muted">Tip: your address is stored locally in your browser.</div>
 
       <div style="height:16px"></div>
       <div class="kpi">
@@ -137,12 +139,12 @@
       </section>
 
       <section class="card">
-        <h2>View & Track Your Proposals</h2>
+        <h2>Track & Learn</h2>
         <div class="row">
           <input id="vpId" type="number" min="1" placeholder="View Proposal by ID" />
           <button class="btn secondary" id="btnView">View</button>
         </div>
-        <div id="viewArea" class="status" style="margin-top:10px">—</div>
+        <div id="viewArea" class="status" style="margin-top:10px">Status will appear here.</div>
 
         <div style="height:18px"></div>
         <h3>Your proposals</h3>
@@ -178,9 +180,10 @@
 
   // --- helpers ---
   const $ = (id) => document.getElementById(id);
-  const log = (msg) => { const el = $("log"); el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.textContent; }
+  const log = (msg) => { const el = $("log"); if (el) { el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.textContent; } };
   const setConn = (text, color) => {
     const pill = $("pillConn");
+    if (!pill) return;
     pill.children[1].textContent = text;
     pill.children[0].style.background = color ?? "#cbd5e1";
   };
@@ -190,11 +193,25 @@
   const toWei = (eth) => ethers.parseEther(String(eth || "0"));
   const fromWei = (wei) => ethers.formatEther(wei);
 
+  // Wait-safe binder: attaches when element exists (helps with SES/lockdown timing)
+  const bind = (id, handler) => {
+    const tryAttach = () => {
+      const el = $(id);
+      if (el) { el.addEventListener('click', handler, false); return true; }
+      return false;
+    };
+    if (!tryAttach()) {
+      const iv = setInterval(() => { if (tryAttach()) clearInterval(iv); }, 50);
+      // auto-stop after 5s
+      setTimeout(() => clearInterval(iv), 5000);
+    }
+  };
+
   // Date helper: convert <input type="date"> to end-of-day LOCAL time (future-safe)
   const dtToUnix = (inp) => {
-    if (!inp.value) return 0n;
+    if (!inp || !inp.value) return 0n;
     const d = new Date(inp.value);
-    d.setHours(23, 59, 59, 0); // end-of-day local
+    d.setHours(23, 59, 59, 0);
     return BigInt(Math.floor(d.getTime() / 1000));
   };
 
@@ -205,7 +222,8 @@
   let contract;
 
   const getContract = () => {
-    const addr = $("inAddr").value.trim();
+    const addrEl = $("inAddr");
+    const addr = (addrEl?.value || "").trim();
     if (!ethers.isAddress(addr)) throw new Error("Invalid contract address");
     return new ethers.Contract(addr, ABI, signer);
   };
@@ -223,268 +241,227 @@
       rejections: Number(p[7]),
       paid: !!p[8]
     };
-    el.textContent = JSON.stringify(obj, null, 2);
+    if (el) el.textContent = JSON.stringify(obj, null, 2);
   }
 
   async function refreshKPIs(){
     try{
       contract = getContract();
       const count = await contract.proposalCount();
-      $("kpiCount").textContent = String(count);
-      // My proposals count (light scan up to latest 200 for UX)
+      const kpiCount = $("kpiCount");
+      if (kpiCount) kpiCount.textContent = String(count);
       let mine = 0;
       const start = count > 200n ? count - 199n : 1n;
       for(let i=start; i<=count; i++){
         const p = await contract.getProposal(i);
-        if (p[0].toLowerCase() === user.toLowerCase()) mine++;
+        if (p[0].toLowerCase() === (user||"").toLowerCase()) mine++;
       }
-      $("kpiMine").textContent = String(mine);
-    }catch(e){ /* ignore if not ready */ }
+      const kpiMine = $("kpiMine");
+      if (kpiMine) kpiMine.textContent = String(mine);
+    }catch{/* ignore if not ready */}
   }
 
-  // --- boot ---
-  window.addEventListener("load", async () => {
-    $("inAddr").value = loadAddr();
+  // --- init after DOM ready (fixes $(...) is null / SES timing) ---
+  document.addEventListener('DOMContentLoaded', () => {
+    // boot
+    const inAddr = $("inAddr");
+    if (inAddr) inAddr.value = loadAddr();
+
     if (window.ethereum){
       provider = new ethers.BrowserProvider(window.ethereum);
-      // slightly faster polling helps on custom chains
       if (provider?.pollingInterval != null) provider.pollingInterval = 2000;
       setConn("Wallet: Detected (not connected)");
-    }else{
+    } else {
       setConn("Wallet: No provider", "#ef4444");
       log("MetaMask not found.");
     }
-  });
 
-  // --- connect/switch ---
-  $("btnConnect").onclick = async () => {
-    try{
-      if (!provider) provider = new ethers.BrowserProvider(window.ethereum);
-      if (provider?.pollingInterval != null) provider.pollingInterval = 2000;
-      await provider.send("eth_requestAccounts", []);
-      signer = await provider.getSigner();
-      user = await signer.getAddress();
-      const net = await provider.getNetwork();
-      chainId = Number(net.chainId);
-      setConn(`Wallet: ${user.slice(0,6)}…${user.slice(-4)} (chain ${chainId})`, "#22c55e");
-      log(`Connected as ${user} on chain ${chainId}`);
-      contract = getContract();
-      await refreshKPIs();
-    }catch(e){
-      console.error(e); log("Connect failed: " + (e?.message||e));
-      setConn("Wallet: Connect failed", "#ef4444");
-    }
-  };
-
-  $("btnSwitch").onclick = async () => {
-    try{
-      await provider.send("wallet_requestPermissions", [{ eth_accounts: {} }]);
-      $("btnConnect").click();
-    }catch(e){ log("Switch failed: " + (e?.message||e)); }
-  };
-
-  // --- save address ---
-  $("btnSaveAddr").onclick = () => {
-    try{
-      const addr = $("inAddr").value.trim();
-      if (!ethers.isAddress(addr)) throw new Error("Invalid address");
-      saveAddr(addr);
-      contract = getContract();
-      log("Saved contract address: " + addr);
-      refreshKPIs();
-    }catch(e){ log("Save failed: " + (e?.message||e)); }
-  };
-
-  // --- create draft (robust wait logic + event parsing + autofill) ---
-  $("btnCreate").onclick = async () => {
-    try {
-      contract = getContract();
-
-      const title = $("pTitle").value.trim();
-      const uri   = $("pURI").value.trim();
-      const amt   = ethers.parseEther(($("pAmt").value || "0").toString());
-      let ddl     = (() => {
-        // end-of-day local for <input type="date">
-        if (!$("pDeadline").value) return 0n;
-        const d = new Date($("pDeadline").value);
-        d.setHours(23, 59, 59, 0);
-        return BigInt(Math.floor(d.getTime() / 1000));
-      })();
-
-      const now = BigInt(Math.floor(Date.now()/1000));
-      if (ddl <= now) ddl = now + 86400n;           // ensure future
-      if (!title || !uri || amt === 0n || ddl === 0n)
-        throw new Error("All fields are required.");
-
-      // (Optional) try to learn the ID up-front via a static call
-      let expectedId = null;
-      try { expectedId = (await contract.createProposal.staticCall(title, uri, amt, ddl)).toString(); } catch {}
-
-      log("Submitting transaction…");
-      const tx = await contract.createProposal(title, uri, amt, ddl);
-      log(`Waiting for confirmation… (tx: ${tx.hash})`);
-
-      // Robust confirmation (handles speed-ups / replacements)
-      let receipt;
-      try {
-        receipt = await tx.wait();
-      } catch (e) {
-        if (e && (e.code === 'TRANSACTION_REPLACED' || e.code === 'CALL_EXCEPTION') && e.replacement) {
-          log(`Transaction replaced: ${tx.hash} → ${e.replacement.hash}`);
-          try {
-            receipt = e.replacementReceipt ?? await e.replacement.wait();
-          } catch {
-            log("Replacement wait failed, falling back to polling…");
-          }
-        } else {
-          log("wait() failed, falling back to polling… " + (e?.message || e));
-        }
+    // connect/switch
+    bind("btnConnect", async () => {
+      try{
+        if (!provider) provider = new ethers.BrowserProvider(window.ethereum);
+        if (provider?.pollingInterval != null) provider.pollingInterval = 2000;
+        await provider.send("eth_requestAccounts", []);
+        signer = await provider.getSigner();
+        user = await signer.getAddress();
+        const net = await provider.getNetwork();
+        chainId = Number(net.chainId);
+        setConn(`Wallet: ${user.slice(0,6)}…${user.slice(-4)} (chain ${chainId})`, "#22c55e");
+        log(`Connected as ${user} on chain ${chainId}`);
+        contract = getContract();
+        await refreshKPIs();
+      }catch(e){
+        console.error(e); log("Connect failed: " + (e?.message||e));
+        setConn("Wallet: Connect failed", "#ef4444");
       }
-      if (!receipt) {
-        const timeoutMs = 120_000;
-        const mined = await provider.waitForTransaction(tx.hash, 1, timeoutMs).catch(() => null);
-        if (mined) {
-          receipt = await provider.getTransactionReceipt(tx.hash);
+    });
+
+    bind("btnSwitch", async () => {
+      try{
+        await provider.send("wallet_requestPermissions", [{ eth_accounts: {} }]);
+        const btn = $("btnConnect"); if (btn) btn.click();
+      }catch(e){ log("Switch failed: " + (e?.message||e)); }
+    });
+
+    // save address
+    bind("btnSaveAddr", () => {
+      try{
+        const addrEl = $("inAddr");
+        const addr = (addrEl?.value || "").trim();
+        if (!ethers.isAddress(addr)) throw new Error("Invalid address");
+        saveAddr(addr);
+        contract = getContract();
+        log("Saved contract address: " + addr);
+        refreshKPIs();
+      }catch(e){ log("Save failed: " + (e?.message||e)); }
+    });
+
+    // create draft
+    bind("btnCreate", async () => {
+      try {
+        contract = getContract();
+        const title = ($("pTitle")?.value || "").trim();
+        const uri   = ($("pURI")?.value || "").trim();
+        const amt   = ethers.parseEther((($("pAmt")?.value) || "0").toString());
+        let ddl     = dtToUnix($("pDeadline"));
+
+        const now = BigInt(Math.floor(Date.now()/1000));
+        if (ddl <= now) ddl = now + 86400n;
+        if (!title || !uri || amt === 0n || ddl === 0n)
+          throw new Error("All fields are required.");
+
+        let expectedId = null;
+        try { expectedId = (await contract.createProposal.staticCall(title, uri, amt, ddl)).toString(); } catch {}
+
+        log("Submitting transaction…");
+        const tx = await contract.createProposal(title, uri, amt, ddl);
+        log(`Waiting for confirmation… (tx: ${tx.hash})`);
+
+        let receipt;
+        try { receipt = await tx.wait(); }
+        catch (e) {
+          if (e && (e.code === 'TRANSACTION_REPLACED' || e.code === 'CALL_EXCEPTION') && e.replacement) {
+            log(`Transaction replaced: ${tx.hash} → ${e.replacement.hash}`);
+            try { receipt = e.replacementReceipt ?? await e.replacement.wait(); } catch { log("Replacement wait failed, polling…"); }
+          } else {
+            log("wait() failed, polling… " + (e?.message || e));
+          }
         }
         if (!receipt) {
-          const sent = await provider.getTransaction(tx.hash).catch(() => null);
-          if (sent) {
-            const latest = await provider.getBlockNumber();
-            for (let b = latest; b >= 0 && b >= latest - 20; b--) {
-              const block = await provider.getBlock(b, true);
-              const match = block?.transactions?.find(t =>
-                (t.from || "").toLowerCase() === (sent.from || "").toLowerCase() && t.nonce === sent.nonce
-              );
-              if (match) {
-                log(`Found replacement in block ${b}: ${match.hash}`);
-                receipt = await provider.getTransactionReceipt(match.hash);
-                break;
-              }
-            }
-          }
+          const mined = await provider.waitForTransaction(tx.hash, 1, 120_000).catch(() => null);
+          if (mined) receipt = await provider.getTransactionReceipt(tx.hash);
         }
-      }
-      if (!receipt) throw new Error("Timed out waiting for confirmation.");
-      log(`Confirmed in block ${receipt.blockNumber}.`);
+        if (!receipt) throw new Error("Timed out waiting for confirmation.");
+        log(`Confirmed in block ${receipt.blockNumber}.`);
 
-      // Try to get the Proposal ID, in this order:
-      // 1) From parsed logs
-      let proposalId = null;
-      try {
-        for (const l of receipt.logs) {
-          const logAddr = (l.address || l.source || "").toLowerCase();
-          const target  = (contract.target || "").toLowerCase();
-          if (logAddr && target && logAddr !== target) continue;
-          const parsed = contract.interface.parseLog({ topics: l.topics, data: l.data });
-          if (parsed?.name === "ProposalCreated") {
-            proposalId = parsed.args[0].toString(); // id is first arg
-            break;
-          }
-        }
-      } catch {}
-
-      // 2) From a direct event query on that block (more robust on some RPCs)
-      if (!proposalId) {
+        let proposalId = null;
         try {
-          const evs = await contract.queryFilter(contract.filters.ProposalCreated(), receipt.blockNumber, receipt.blockNumber);
-          let pick = evs.find(e => (e.args?.proposer || "").toLowerCase() === (user || "").toLowerCase());
-          if (!pick && evs.length) pick = evs[evs.length - 1];
-          if (pick?.args?.id != null) proposalId = pick.args.id.toString();
+          for (const l of receipt.logs) {
+            const logAddr = (l.address || l.source || "").toLowerCase();
+            const target  = (contract.target || "").toLowerCase();
+            if (logAddr && target && logAddr !== target) continue;
+            const parsed = contract.interface.parseLog({ topics: l.topics, data: l.data });
+            if (parsed?.name === "ProposalCreated") { proposalId = parsed.args[0].toString(); break; }
+          }
         } catch {}
-      }
 
-      // 3) From the prior staticCall (best-effort guess)
-      if (!proposalId && expectedId) proposalId = expectedId;
-
-      // 4) Last resort: read the counter (assumes IDs are 1..proposalCount)
-      if (!proposalId) {
-        try { proposalId = (await contract.proposalCount()).toString(); } catch {}
-      }
-
-      if (proposalId) {
-        log(`✅ Proposal created! ID: ${proposalId}`);
-        const pIdEl = document.getElementById("pId"); if (pIdEl) pIdEl.value = proposalId;
-        const vpIdEl = document.getElementById("vpId"); if (vpIdEl) vpIdEl.value = proposalId;
-      } else {
-        log("✅ Proposal created! (Could not determine ID; check explorer logs.)");
-      }
-
-      await refreshKPIs();
-
-    } catch (e) {
-      log("Create failed: " + (e?.reason || e?.message || e));
-      console.error(e);
-    }
-  };
-
-  // --- update draft ---
-  $("btnUpdate").onclick = async () => {
-    try{
-      contract = getContract();
-      const id  = BigInt($("pId").value || "0");
-      if (id===0n) throw new Error("Proposal ID required.");
-      const title = $("pTitle2").value || " ";
-      const uri   = $("pURI2").value || " ";
-      const amt   = $("pAmt2").value ? toWei($("pAmt2").value) : 0n;
-      const ddl   = (document.getElementById("pDeadline2").value
-                    ? BigInt(Math.floor(new Date(document.getElementById("pDeadline2").value).getTime()/1000))
-                    : 0n);
-      const tx = await contract.updateDraft(id, title, uri, amt, ddl);
-      log("Updating draft… " + tx.hash);
-      await tx.wait();
-      log("Draft updated.");
-    }catch(e){ log("Update failed: " + (e?.message||e)); }
-  };
-
-  // --- submit draft ---
-  $("btnSubmit").onclick = async () => {
-    try{
-      contract = getContract();
-      const id = BigInt($("pId").value || "0");
-      if (id===0n) throw new Error("Proposal ID required.");
-      const tx = await contract.submit(id);
-      log("Submitting… " + tx.hash);
-      await tx.wait();
-      log("Proposal submitted for review.");
-      await refreshKPIs();
-    }catch(e){ log("Submit failed: " + (e?.message||e)); }
-  };
-
-  // --- view proposal ---
-  $("btnView").onclick = async () => {
-    try{
-      contract = getContract();
-      const id = BigInt($("vpId").value || "0");
-      if (id===0n) throw new Error("Proposal ID required.");
-      const p = await contract.getProposal(id);
-      displayProposal(id, p, $("viewArea"));
-      log("Loaded proposal " + id);
-    }catch(e){ log("View failed: " + (e?.message||e)); }
-  };
-
-  // --- load my proposals (scans all IDs; adjust if program grows large) ---
-  $("btnLoadMine").onclick = async () => {
-    try{
-      contract = getContract();
-      if (!user) throw new Error("Connect your wallet first.");
-      const count = await contract.proposalCount();
-      if (count === 0n) { $("mineArea").textContent = "No proposals yet."; $("kpiMine").textContent = "0"; return; }
-      const start = 1n;
-      const lines = [];
-      let mine = 0;
-      for (let i=start; i<=count; i++){
-        const p = await contract.getProposal(i);
-        if (p[0].toLowerCase() === user.toLowerCase()){
-          mine++;
-          const line = `#${i} — ${STATUS[p[5]] ?? "Unknown"} — ${p[1]} — ${fromWei(p[3])} ETH — deadline ${Number(p[4]) ? new Date(Number(p[4])*1000).toLocaleDateString() : "-"}`;
-          lines.push(line);
+        if (!proposalId) {
+          try {
+            const evs = await contract.queryFilter(contract.filters.ProposalCreated(), receipt.blockNumber, receipt.blockNumber);
+            let pick = evs.find(e => (e.args?.proposer || "").toLowerCase() === (user||"").toLowerCase());
+            if (!pick && evs.length) pick = evs[evs.length - 1];
+            if (pick?.args?.id != null) proposalId = pick.args.id.toString();
+          } catch {}
         }
+        if (!proposalId && expectedId) proposalId = expectedId;
+        if (!proposalId) { try { proposalId = (await contract.proposalCount()).toString(); } catch {} }
+
+        if (proposalId) {
+          log(`✅ Proposal created! ID: ${proposalId}`);
+          const pIdEl = $("pId"); if (pIdEl) pIdEl.value = proposalId;
+          const vpIdEl = $("vpId"); if (vpIdEl) vpIdEl.value = proposalId;
+        } else {
+          log("✅ Proposal created! (Could not determine ID; check explorer logs.)");
+        }
+
+        await refreshKPIs();
+
+      } catch (e) {
+        log("Create failed: " + (e?.reason || e?.message || e));
+        console.error(e);
       }
-      $("mineArea").textContent = lines.length ? lines.join("\n") : "You have not created any proposals.";
-      $("kpiMine").textContent = String(mine);
-      log("Loaded your proposals.");
-    }catch(e){ log("Load mine failed: " + (e?.message||e)); }
-  };
+    });
+
+    // update draft
+    bind("btnUpdate", async () => {
+      try{
+        contract = getContract();
+        const id  = BigInt(($("pId")?.value || "0"));
+        if (id===0n) throw new Error("Proposal ID required.");
+        const title = $("pTitle2")?.value || " ";
+        const uri   = $("pURI2")?.value || " ";
+        const amt   = $("pAmt2")?.value ? toWei($("pAmt2").value) : 0n;
+        const ddlVal = $("pDeadline2")?.value;
+        const ddl   = ddlVal ? BigInt(Math.floor(new Date(ddlVal).getTime()/1000)) : 0n;
+        const tx = await contract.updateDraft(id, title, uri, amt, ddl);
+        log("Updating draft… " + tx.hash);
+        await tx.wait();
+        log("Draft updated.");
+      }catch(e){ log("Update failed: " + (e?.message||e)); }
+    });
+
+    // submit draft
+    bind("btnSubmit", async () => {
+      try{
+        contract = getContract();
+        const id = BigInt(($("pId")?.value || "0"));
+        if (id===0n) throw new Error("Proposal ID required.");
+        const tx = await contract.submit(id);
+        log("Submitting… " + tx.hash);
+        await tx.wait();
+        log("Proposal submitted for review.");
+        await refreshKPIs();
+      }catch(e){ log("Submit failed: " + (e?.message||e)); }
+    });
+
+    // view proposal
+    bind("btnView", async () => {
+      try{
+        contract = getContract();
+        const id = BigInt(($("vpId")?.value || "0"));
+        if (id===0n) throw new Error("Proposal ID required.");
+        const p = await contract.getProposal(id);
+        displayProposal(id, p, $("viewArea"));
+        log("Loaded proposal " + id);
+      }catch(e){ log("View failed: " + (e?.message||e)); }
+    });
+
+    // load mine
+    bind("btnLoadMine", async () => {
+      try{
+        contract = getContract();
+        if (!user) throw new Error("Connect your wallet first.");
+        const count = await contract.proposalCount();
+        if (count === 0n) { const m=$("mineArea"); if(m) m.textContent="No proposals yet."; const km=$("kpiMine"); if(km) km.textContent="0"; return; }
+        const start = 1n;
+        const lines = [];
+        let mine = 0;
+        for (let i=start; i<=count; i++){
+          const p = await contract.getProposal(i);
+          if (p[0].toLowerCase() === (user||"").toLowerCase()){
+            mine++;
+            const line = `#${i} — ${STATUS[p[5]] ?? "Unknown"} — ${p[1]} — ${fromWei(p[3])} ETH — deadline ${Number(p[4]) ? new Date(Number(p[4])*1000).toLocaleDateString() : "-"}`;
+            lines.push(line);
+          }
+        }
+        const mineArea = $("mineArea");
+        if (mineArea) mineArea.textContent = lines.length ? lines.join("\n") : "You have not created any proposals.";
+        const kpiMine = $("kpiMine");
+        if (kpiMine) kpiMine.textContent = String(mine);
+        log("Loaded your proposals.");
+      }catch(e){ log("Load mine failed: " + (e?.message||e)); }
+    });
+  });
 </script>
 </body>
 </html>
