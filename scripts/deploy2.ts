@@ -4,10 +4,13 @@ import { loadArtifact, makeClients, parseUnits18, fees, requireEnv, maybeEnv, up
 
 (async () => {
   try {
-    
-    const CONTRACT_NAME = process.env.CONTRACT_NAME ?? "BankMintToken";
+    // CHANGE: default to GrantProposal (was BankMintToken)
+    const CONTRACT_NAME = process.env.CONTRACT_NAME ?? "GrantProposal";
+    // Ensure utils that read env can see the intended name
+    process.env.CONTRACT_NAME = CONTRACT_NAME;
+
     const { abi, bytecode } = await loadArtifact();
-    
+
     const { publicClient, walletClient } = makeClients();
     const name = requireEnv('TOKEN_NAME');
     const symbol = requireEnv('TOKEN_SYMBOL');
@@ -19,9 +22,8 @@ import { loadArtifact, makeClients, parseUnits18, fees, requireEnv, maybeEnv, up
     const defaultReceiver = (await walletClient.getAddresses())[0] as Address;
     const initialReceiver = (maybeEnv('INITIAL_RECEIVER') as Address) || defaultReceiver;
 
-    // Instead of EIP-1559 fees, use legacy gas price:
-    // You can replace this with a dynamic value if you want
-    const gasPrice = BigInt(2_000_000_000); // 2 gwei, adjust as needed
+    // Legacy gas price (unchanged)
+    const gasPrice = BigInt(2_000_000_000); // 2 gwei
 
     const hash = await walletClient.deployContract({
       abi,

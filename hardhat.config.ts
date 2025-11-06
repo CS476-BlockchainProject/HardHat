@@ -29,6 +29,7 @@ const config: HardhatUserConfig = {
         enabled: true,
         runs: 200,
       },
+      viaIR: true, 
       evmVersion: "paris", // to avoid PUSH0 opcode errors
     },
   },
