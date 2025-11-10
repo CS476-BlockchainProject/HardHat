@@ -28,3 +28,8 @@ npm test
 ```bash
 npm run cli     
 ```
+
+# How to run metrics
+```bash
+npm run metric:perf
+```
