@@ -21,6 +21,8 @@ npx hardhat run scripts/send-op-tx.ts --network didlab
 # How to run tests
 ```bash
 npm test
+npx hardhat test
+
 ```
 
 
