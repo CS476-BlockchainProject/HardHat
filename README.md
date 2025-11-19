@@ -23,7 +23,7 @@ npx hardhat run scripts/send-op-tx.ts --network didlab
 Ensure you run this first: npm i -D hardhat @nomicfoundation/hardhat-toolbox-viem typescript ts-node chai @types/chai
 npm test
 npx hardhat test
-or specfically: npx hardhat test test/BankMintToken.ts
+or specfically: npx hardhat test test/TestGrantProposal.ts
 ```
 
 
