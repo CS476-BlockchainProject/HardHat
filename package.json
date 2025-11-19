@@ -9,8 +9,8 @@
     "deploy": "hardhat run scripts/deploy.ts --network didlab",
     "xfer": "hardhat run scripts/transfer-approve.ts --network didlab",
     "airdrop": "hardhat run scripts/airdrop.ts --network didlab",
-    "logs": "hardhat run scripts/logs-query.ts --network didlab"
-    "metric:perf": "ts-node scripts/measure_latency_transfer_approve.ts"
+    "logs": "hardhat run scripts/logs-query.ts --network didlab",
+    "metricperf": "ts-node scripts/measure_latency_transfer_approve.ts"
   },
   "keywords": [],
   "author": "",
@@ -18,10 +18,13 @@
   "description": "",
   "devDependencies": {
     "@nomicfoundation/hardhat-ignition": "^3.0.3",
-    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.0",
+    "@nomicfoundation/hardhat-toolbox-viem": "^5.0.1",
+    "@types/chai": "^5.2.3",
     "@types/node": "^22.18.10",
+    "chai": "^6.2.1",
     "forge-std": "github:foundry-rs/forge-std#v1.9.7",
-    "hardhat": "^3.0.7",
+    "hardhat": "^3.0.15",
+    "ts-node": "^10.9.2",
     "tsx": "^4.20.6",
     "typescript": "~5.8.0",
     "viem": "^2.37.6",

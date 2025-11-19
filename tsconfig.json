@@ -11,9 +11,9 @@
     "types": ["node", "hardhat", "vitest/globals"]
   },
   "include": [
-    "scripts/**/*.ts",
-    "test/**/*.ts",
-    "vite.config.ts",
-    "vitest.config.ts"
+    "./scripts/**/*.ts",
+    "./test/**/*.ts",
+    "./vite.config.ts",
+    "./vitest.config.ts"
   ]
 }

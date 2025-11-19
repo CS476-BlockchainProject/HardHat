@@ -1,6 +1,6 @@
 // hardhat.config.ts
 import "dotenv/config";
-import "@nomicfoundation/hardhat-toolbox-viem";
+import hardhatToolboxViem from "@nomicfoundation/hardhat-toolbox-viem";
 import { HardhatUserConfig } from "hardhat/config";
 
 const networks: HardhatUserConfig["networks"] = {
@@ -22,6 +22,7 @@ if (process.env.RPC_URL) {
 }
 
 const config: HardhatUserConfig = {
+  plugins: [hardhatToolboxViem],
   solidity: {
     version: "0.8.24",
     settings: {
