@@ -31,6 +31,8 @@
   .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer}
   .btn:hover{background:var(--accent-2)}
   .btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  /* small pill-style button to match review page */
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:999px}
   .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#fff;border:1px solid var(--border);font-size:12px}
   .dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1}
   .status{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;background:#fff;border:1px dashed var(--border);padding:10px;border-radius:10px}
@@ -56,9 +58,13 @@
 <header>
   <div class="wrap brand">
     <img src="open_grant.png" alt="OpenGrant Logo" class="logo-img" />
-    <span class="pill" id="pillConn">
-      <span class="dot"></span><span>Wallet: Not connected</span>
-    </span>
+    <div class="row" style="justify-content:flex-end;flex:1">
+      <!-- matches review page style -->
+      <a href="review.html" class="btn secondary sm" style="text-decoration:none">Vote on Proposals</a>
+      <span class="pill" id="pillConn">
+        <span class="dot"></span><span>Wallet: Not connected</span>
+      </span>
+    </div>
   </div>
 </header>
 
@@ -193,7 +199,6 @@
   const toWei = (eth) => ethers.parseEther(String(eth || "0"));
   const fromWei = (wei) => ethers.formatEther(wei);
 
-  // Wait-safe binder: attaches when element exists (helps with SES/lockdown timing)
   const bind = (id, handler) => {
     const tryAttach = () => {
       const el = $(id);
@@ -202,12 +207,10 @@
     };
     if (!tryAttach()) {
       const iv = setInterval(() => { if (tryAttach()) clearInterval(iv); }, 50);
-      // auto-stop after 5s
       setTimeout(() => clearInterval(iv), 5000);
     }
   };
 
-  // Date helper: convert <input type="date"> to end-of-day LOCAL time (future-safe)
   const dtToUnix = (inp) => {
     if (!inp || !inp.value) return 0n;
     const d = new Date(inp.value);
@@ -217,7 +220,6 @@
 
   const STATUS = ["Draft","Submitted","Approved","Rejected","Cancelled","Funded"];
 
-  // --- state ---
   let provider, signer, user, chainId;
   let contract;
 
@@ -261,9 +263,7 @@
     }catch{/* ignore if not ready */}
   }
 
-  // --- init after DOM ready (fixes $(...) is null / SES timing) ---
   document.addEventListener('DOMContentLoaded', () => {
-    // boot
     const inAddr = $("inAddr");
     if (inAddr) inAddr.value = loadAddr();
 
@@ -276,7 +276,6 @@
       log("MetaMask not found.");
     }
 
-    // connect/switch
     bind("btnConnect", async () => {
       try{
         if (!provider) provider = new ethers.BrowserProvider(window.ethereum);
@@ -303,7 +302,6 @@
       }catch(e){ log("Switch failed: " + (e?.message||e)); }
     });
 
-    // save address
     bind("btnSaveAddr", () => {
       try{
         const addrEl = $("inAddr");
@@ -316,7 +314,6 @@
       }catch(e){ log("Save failed: " + (e?.message||e)); }
     });
 
-    // create draft
     bind("btnCreate", async () => {
       try {
         contract = getContract();
@@ -392,7 +389,6 @@
       }
     });
 
-    // update draft
     bind("btnUpdate", async () => {
       try{
         contract = getContract();
@@ -410,7 +406,6 @@
       }catch(e){ log("Update failed: " + (e?.message||e)); }
     });
 
-    // submit draft
     bind("btnSubmit", async () => {
       try{
         contract = getContract();
@@ -424,7 +419,6 @@
       }catch(e){ log("Submit failed: " + (e?.message||e)); }
     });
 
-    // view proposal
     bind("btnView", async () => {
       try{
         contract = getContract();
@@ -436,7 +430,6 @@
       }catch(e){ log("View failed: " + (e?.message||e)); }
     });
 
-    // load mine
     bind("btnLoadMine", async () => {
       try{
         contract = getContract();

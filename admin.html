@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Community Grants — Admin</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#ffffff; --card:#f8fafc; --text:#0f172a; --muted:#475569; --border:#e2e8f0;
+    --accent:#1d4ed8; --accent-2:#1e40af; --ok:#15803d; --warn:#b45309; --bad:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+  header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10}
+  .wrap{max-width:980px;margin:0 auto;padding:16px}
+  .brand{display:flex;gap:12px;align-items:center;justify-content:space-between}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+  .card h2{margin:0 0 12px 0;font-size:18px}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);outline:none;font-size:13px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn:hover{background:var(--accent-2)}
+  .btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:999px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#fff;border:1px solid var(--border);font-size:12px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1}
+  .status{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;background:#fff;border:1px dashed var(--border);padding:10px;border-radius:10px}
+  .muted{color:var(--muted);font-size:13px}
+  small.code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fff;border:1px solid var(--border);padding:2px 6px;border-radius:6px}
+  .logo-img {
+    height: 50px;
+    width: auto;
+    display: block;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap brand">
+    <img src="open_grant.png" alt="OpenGrant Logo" class="logo-img" />
+    <div class="row" style="justify-content:flex-end;flex:1">
+      <a href="index.html" class="btn secondary sm" style="text-decoration:none">Apply</a>
+      <a href="review.html" class="btn secondary sm" style="text-decoration:none">Review</a>
+      <a href="fund.html" class="btn secondary sm" style="text-decoration:none">Fund</a>
+      <span class="pill" id="pillConn">
+        <span class="dot"></span><span>Wallet: Not connected</span>
+      </span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <h2>Admin — Manage Reviewers</h2>
+    <p class="muted">
+      Connect with an account that has <span class="code">DEFAULT_ADMIN_ROLE</span> on this
+      <span class="code">GrantProposal</span> contract. Then you can add or check
+      <span class="code">REVIEWER_ROLE</span> for any address.
+    </p>
+
+    <div class="row" style="align-items:flex-end;margin-top:10px">
+      <div style="flex:1;min-width:260px">
+        <label>GrantProposal Contract Address</label>
+        <input id="inAddr" placeholder="0x..." />
+        <div class="muted" style="margin-top:4px">Same address as the main app (stored locally).</div>
+      </div>
+      <div class="row" style="flex:0 0 auto">
+        <button class="btn secondary" id="btnSaveAddr">Save</button>
+        <button class="btn" id="btnConnect">Connect</button>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <label>Reviewer address</label>
+      <input id="inReviewer" placeholder="0x... (defaults to your connected wallet)" />
+      <div class="row" style="margin-top:8px">
+        <button class="btn" id="btnSetSelf">Use my address</button>
+        <button class="btn secondary" id="btnCheck">Check REVIEWER_ROLE</button>
+        <button class="btn" id="btnAdd">Add REVIEWER_ROLE</button>
+      </div>
+    </div>
+
+    <div style="margin-top:16px">
+      <h3>Activity</h3>
+      <div id="log" class="status">Ready.</div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.min.js";
+
+  const ABI = [
+    "function REVIEWER_ROLE() view returns (bytes32)",
+    "function hasRole(bytes32 role, address account) view returns (bool)",
+    "function addReviewer(address account)"
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  const log = (msg) => {
+    const el = $("log");
+    if (el) {
+      el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.textContent;
+    }
+  };
+  const setConn = (text, color) => {
+    const pill = $("pillConn");
+    if (!pill) return;
+    pill.children[1].textContent = text;
+    pill.children[0].style.background = color ?? "#cbd5e1";
+  };
+  const saveAddr = (addr) => localStorage.setItem("GRANT_ADDR", addr);
+  const loadAddr = () => localStorage.getItem("GRANT_ADDR") || "0x355e11a1146505ee29a04831142dd24ec54bb259";
+
+  const bind = (id, handler) => {
+    const tryAttach = () => {
+      const el = $(id);
+      if (el) { el.addEventListener("click", handler, false); return true; }
+      return false;
+    };
+    if (!tryAttach()) {
+      const iv = setInterval(() => { if (tryAttach()) clearInterval(iv); }, 50);
+      setTimeout(() => clearInterval(iv), 5000);
+    }
+  };
+
+  let provider, signer, user, chainId;
+  let contract;
+
+  const getContract = () => {
+    const addrEl = $("inAddr");
+    const addr = (addrEl?.value || "").trim();
+    if (!ethers.isAddress(addr)) throw new Error("Invalid contract address");
+    if (!signer) throw new Error("Connect wallet first.");
+    return new ethers.Contract(addr, ABI, signer);
+  };
+
+  async function ensureWallet() {
+    if (!window.ethereum) {
+      log("No injected wallet found. Install MetaMask (or similar) and reload.");
+      setConn("Wallet: No provider", "#ef4444");
+      throw new Error("No provider");
+    }
+    if (!provider) {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      if (provider.pollingInterval != null) provider.pollingInterval = 2000;
+    }
+    if (!signer) {
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      user = await signer.getAddress();
+      const net = await provider.getNetwork();
+      chainId = Number(net.chainId);
+      setConn(`Wallet: ${user.slice(0,6)}…${user.slice(-4)} (chain ${chainId})`, "#22c55e");
+      log(`Connected as ${user} on chain ${chainId}`);
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const inAddr = $("inAddr");
+    if (inAddr) inAddr.value = loadAddr();
+
+    if (window.ethereum) {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      if (provider.pollingInterval != null) provider.pollingInterval = 2000;
+      setConn("Wallet: Detected (not connected)");
+    } else {
+      setConn("Wallet: No provider", "#ef4444");
+      log("MetaMask not found.");
+    }
+
+    bind("btnConnect", async () => {
+      try { await ensureWallet(); }
+      catch (e) { console.error(e); log("Connect failed: " + (e?.message || e)); }
+    });
+
+    bind("btnSaveAddr", () => {
+      try {
+        const addrEl = $("inAddr");
+        const addr = (addrEl?.value || "").trim();
+        if (!ethers.isAddress(addr)) throw new Error("Invalid address");
+        saveAddr(addr);
+        log("Saved contract address: " + addr);
+      } catch (e) {
+        log("Save failed: " + (e?.message || e));
+      }
+    });
+
+    bind("btnSetSelf", async () => {
+      try {
+        await ensureWallet();
+        const inRev = $("inReviewer");
+        if (inRev) inRev.value = user;
+        log("Set reviewer address to " + user);
+      } catch (e) {
+        log("SetSelf failed: " + (e?.message || e));
+      }
+    });
+
+    bind("btnCheck", async () => {
+      try {
+        await ensureWallet();
+        contract = getContract();
+        const role = await contract.REVIEWER_ROLE();
+        const addr = ($("inReviewer")?.value || "").trim();
+        if (!ethers.isAddress(addr)) throw new Error("Invalid reviewer address");
+        const has = await contract.hasRole(role, addr);
+        log(`has REVIEWER_ROLE? for ${addr}: ${has}`);
+      } catch (e) {
+        console.error(e);
+        log("Check failed: " + (e?.reason || e?.message || e));
+      }
+    });
+
+    bind("btnAdd", async () => {
+      try {
+        await ensureWallet();
+        contract = getContract();
+        const addr = ($("inReviewer")?.value || "").trim();
+        if (!ethers.isAddress(addr)) throw new Error("Invalid reviewer address");
+        log("Calling addReviewer(" + addr + ") …");
+        const tx = await contract.addReviewer(addr);
+        log("Waiting for confirmation… " + tx.hash);
+        await tx.wait();
+        log("✅ Reviewer added: " + addr);
+      } catch (e) {
+        console.error(e);
+        log("Add reviewer failed: " + (e?.reason || e?.message || e));
+      }
+    });
+  });
+</script>
+</body>
+</html>

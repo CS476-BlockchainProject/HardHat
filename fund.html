@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Community Grants — Fund Approved Proposals</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root{
+    --bg:#ffffff; --card:#f8fafc; --text:#0f172a; --muted:#475569; --border:#e2e8f0;
+    --accent:#1d4ed8; --accent-2:#1e40af; --ok:#15803d; --warn:#b45309; --bad:#b91c1c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0;background:var(--bg);color:var(--text);
+    font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
+  header{position:sticky;top:0;background:#fff;border-bottom:1px solid var(--border);z-index:10}
+  .wrap{max-width:980px;margin:0 auto;padding:16px}
+  .brand{display:flex;gap:12px;align-items:center;justify-content:space-between}
+  h1{font-size:20px;margin:0}
+  main.wrap{padding-top:24px;padding-bottom:48px}
+  .row{display:flex;gap:10px;flex-wrap:wrap}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:16px}
+  .card h2{margin:0 0 12px 0;font-size:18px}
+  .card h3{margin:10px 0 6px 0;font-size:16px}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  input{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:#fff;color:var(--text);outline:none;font-size:13px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-weight:600;cursor:pointer;font-size:13px}
+  .btn:hover{background:var(--accent-2)}
+  .btn.secondary{background:#fff;color:var(--accent);border:1px solid var(--accent)}
+  .btn.sm{padding:6px 10px;font-size:12px;border-radius:999px}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;background:#fff;border:1px solid var(--border);font-size:12px}
+  .dot{width:8px;height:8px;border-radius:50%;background:#cbd5e1}
+  .status{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;background:#fff;border:1px dashed var(--border);padding:10px;border-radius:10px}
+  .muted{color:var(--muted);font-size:13px}
+  small.code{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fff;border:1px solid var(--border);padding:2px 6px;border-radius:6px}
+  .logo-img {
+    height: 50px;
+    width: auto;
+    display: block;
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  /* grid of approved proposals */
+  .cardsGrid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+    gap:12px;
+    margin-top:12px;
+  }
+  .grantCard{
+    background:#fff;
+    border-radius:14px;
+    border:1px solid var(--border);
+    padding:14px;
+    display:flex;
+    flex-direction:column;
+    gap:6px;
+    font-size:13px;
+  }
+  .grantTitle{
+    font-weight:600;
+    font-size:14px;
+  }
+  .badge{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    padding:2px 8px;
+    border-radius:999px;
+    font-size:11px;
+  }
+  .badge.approved{background:#ecfdf3;color:#15803d}
+  .badge.funded{background:#f0fdf4;color:#15803d}
+  .badge.deadlineSoon{background:#fef9c3;color:#854d0e}
+  .linkTiny{
+    font-size:12px;
+    color:var(--accent);
+    text-decoration:none;
+  }
+  .linkTiny:hover{text-decoration:underline}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap brand">
+    <img src="open_grant.png" alt="OpenGrant Logo" class="logo-img" />
+    <div class="row" style="justify-content:flex-end;flex:1">
+      <a href="index.html" class="btn secondary sm" style="text-decoration:none">Apply for Funding</a>
+      <a href="review.html" class="btn secondary sm" style="text-decoration:none">Vote on Proposals</a>
+      <span class="pill" id="pillConn">
+        <span class="dot"></span><span>Wallet: Not connected</span>
+      </span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="card">
+    <h2>Fund approved proposals</h2>
+    <p class="muted">
+      Browse proposals that have been <b>Approved</b> by reviewers. Anyone can send ETH
+      directly to the proposer’s wallet. This does <b>not</b> go through the shared pool /
+      <span class="code">disburse()</span>; it is a direct donation.
+    </p>
+
+    <div class="row" style="align-items:flex-end;margin-top:10px">
+      <div style="flex:1;min-width:250px">
+        <label>GrantProposal Contract Address</label>
+        <input id="inAddr" placeholder="0x..." />
+        <div class="muted" style="margin-top:4px">Uses the same address as the Apply/Vote pages (stored locally).</div>
+      </div>
+      <div class="row" style="flex:0 0 auto">
+        <button class="btn secondary" id="btnSaveAddr">Save</button>
+        <button class="btn" id="btnConnect">Connect</button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:10px">
+      <button class="btn secondary" id="btnReload">Reload approved proposals</button>
+    </div>
+
+    <div id="gallery" class="cardsGrid" style="margin-top:10px">
+      <div class="muted">Click “Reload approved proposals” to fetch on-chain data.</div>
+    </div>
+
+    <div style="margin-top:14px">
+      <h3>Activity</h3>
+      <div id="log" class="status">Ready.</div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+  import { ethers } from "https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.min.js";
+
+  // --- ABI for read-only proposals ---
+  const ABI = [
+    "function proposalCount() view returns (uint256)",
+    "function getProposal(uint256 id) view returns (address,string,string,uint256,uint64,uint8,uint32,uint32,bool)"
+  ];
+
+  const STATUS = ["Draft","Submitted","Approved","Rejected","Cancelled","Funded"];
+
+  const $ = (id) => document.getElementById(id);
+  const log = (msg) => {
+    const el = $("log");
+    if (el) {
+      el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}\n` + el.textContent;
+    }
+  };
+  const setConn = (text, color) => {
+    const pill = $("pillConn");
+    if (!pill) return;
+    pill.children[1].textContent = text;
+    pill.children[0].style.background = color ?? "#cbd5e1";
+  };
+  const saveAddr = (addr) => localStorage.setItem("GRANT_ADDR", addr);
+  const loadAddr = () => localStorage.getItem("GRANT_ADDR") || "0x355e11a1146505ee29a04831142dd24ec54bb259";
+  const fromWei = (wei) => ethers.formatEther(wei);
+
+  const bind = (id, handler) => {
+    const tryAttach = () => {
+      const el = $(id);
+      if (el) { el.addEventListener("click", handler, false); return true; }
+      return false;
+    };
+    if (!tryAttach()) {
+      const iv = setInterval(() => { if (tryAttach()) clearInterval(iv); }, 50);
+      setTimeout(() => clearInterval(iv), 5000);
+    }
+  };
+
+  let provider, signer, user, chainId;
+  let proposals = []; // approved proposals
+
+  const getReadContract = () => {
+    const addrEl = $("inAddr");
+    const addr = (addrEl?.value || "").trim();
+    if (!ethers.isAddress(addr)) throw new Error("Invalid contract address");
+    const p = signer || provider;
+    if (!p) throw new Error("No provider available");
+    return new ethers.Contract(addr, ABI, p);
+  };
+
+  function asProposalObj(id, p) {
+    return {
+      id: Number(id),
+      proposer: p[0],
+      title: p[1],
+      detailsURL: p[2],
+      requestedAmount: fromWei(p[3]),
+      reviewDeadline: Number(p[4]) ? new Date(Number(p[4]) * 1000) : null,
+      status: STATUS[p[5]] ?? `Unknown(${p[5]})`,
+      approvals: Number(p[6]),
+      rejections: Number(p[7]),
+      paid: !!p[8]
+    };
+  }
+
+  function renderGallery() {
+    const gallery = $("gallery");
+    if (!gallery) return;
+
+    if (!proposals.length) {
+      gallery.innerHTML = '<div class="muted">No approved proposals found.</div>';
+      return;
+    }
+
+    const cards = proposals.map((p) => {
+      const deadlineStr = p.reviewDeadline ? p.reviewDeadline.toLocaleDateString() : "-";
+      const statusLabel = p.paid ? "Funded" : p.status;
+      const badgeClass = p.paid ? "funded" : "approved";
+
+      return `
+        <div class="grantCard" data-id="${p.id}" data-proposer="${p.proposer}">
+          <div class="row" style="justify-content:space-between;align-items:center">
+            <div class="grantTitle">#${p.id} — ${p.title || "(no title)"}</div>
+            <span class="badge ${badgeClass}">${statusLabel}</span>
+          </div>
+          <div>Requested: <b>${p.requestedAmount} ETH</b></div>
+          <div>Proposer: <span class="code" style="font-size:11px">${p.proposer.slice(0,6)}…${p.proposer.slice(-4)}</span></div>
+          <div>Review deadline: ${deadlineStr}</div>
+          <div style="margin-top:4px">
+            <label style="margin-bottom:4px">Amount to send (ETH)</label>
+            <input
+              type="number"
+              min="0"
+              step="0.0001"
+              value="${p.requestedAmount}"
+              data-amt="${p.id}"
+            />
+          </div>
+          <div class="row" style="margin-top:8px;align-items:center;justify-content:space-between">
+            <button class="btn" data-fund="${p.id}">Fund proposal</button>
+            ${p.detailsURL
+              ? `<a href="${p.detailsURL}" target="_blank" rel="noreferrer" class="linkTiny">View full proposal ↗</a>`
+              : `<span class="muted" style="font-size:11px">No details URL</span>`}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    gallery.innerHTML = cards;
+  }
+
+  async function reloadApproved() {
+    try {
+      const rc = getReadContract();
+      log("Loading proposals…");
+      const count = await rc.proposalCount();
+      const n = Number(count);
+      const list = [];
+      for (let i = 1; i <= n; i++) {
+        const p = await rc.getProposal(i);
+        const obj = asProposalObj(i, p);
+        if (obj.status === "Approved" || obj.paid) {
+          list.push(obj);
+        }
+      }
+      proposals = list;
+      renderGallery();
+      log(`Loaded ${list.length} approved/funded proposals.`);
+    } catch (e) {
+      console.error(e);
+      log("Reload failed: " + (e?.reason || e?.message || e));
+    }
+  }
+
+  async function ensureWallet() {
+    if (!window.ethereum) {
+      log("No injected wallet found. Install MetaMask (or similar) and reload the page.");
+      setConn("Wallet: No provider", "#ef4444");
+      throw new Error("No provider");
+    }
+    if (!provider) {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      if (provider.pollingInterval != null) provider.pollingInterval = 2000;
+    }
+    if (!signer) {
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      user = await signer.getAddress();
+      const net = await provider.getNetwork();
+      chainId = Number(net.chainId);
+      setConn(`Wallet: ${user.slice(0,6)}…${user.slice(-4)} (chain ${chainId})`, "#22c55e");
+      log(`Connected as ${user} on chain ${chainId}`);
+    }
+  }
+
+  async function fundProposal(id) {
+    try {
+      await ensureWallet();
+    } catch {
+      return;
+    }
+    const gallery = $("gallery");
+    if (!gallery) return;
+
+    const card = gallery.querySelector(`.grantCard[data-id="${id}"]`);
+    if (!card) return;
+    const proposer = card.getAttribute("data-proposer");
+    if (!proposer) return;
+
+    const amtInput = gallery.querySelector(`input[data-amt="${id}"]`);
+    const valEth = (amtInput?.value || "").trim();
+    if (!valEth || Number(valEth) <= 0) {
+      log("Enter a positive amount of ETH to send.");
+      return;
+    }
+
+    try {
+      const value = ethers.parseEther(String(valEth));
+      log(`Sending ${valEth} ETH to proposer of #${id}…`);
+      const tx = await signer.sendTransaction({ to: proposer, value });
+      log("Waiting for confirmation… " + tx.hash);
+      await tx.wait();
+      log(`Donation to proposal #${id} confirmed.`);
+    } catch (e) {
+      console.error(e);
+      log("Funding failed: " + (e?.reason || e?.message || e));
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    const inAddr = $("inAddr");
+    if (inAddr) inAddr.value = loadAddr();
+
+    if (window.ethereum) {
+      provider = new ethers.BrowserProvider(window.ethereum);
+      if (provider.pollingInterval != null) provider.pollingInterval = 2000;
+      setConn("Wallet: Detected (not connected)");
+    } else {
+      setConn("Wallet: No provider", "#ef4444");
+      log("MetaMask not found.");
+    }
+
+    bind("btnConnect", async () => {
+      try {
+        await ensureWallet();
+      } catch (e) {
+        console.error(e);
+        log("Connect failed: " + (e?.message || e));
+      }
+    });
+
+    bind("btnSaveAddr", () => {
+      try {
+        const addrEl = $("inAddr");
+        const addr = (addrEl?.value || "").trim();
+        if (!ethers.isAddress(addr)) throw new Error("Invalid address");
+        saveAddr(addr);
+        log("Saved contract address: " + addr);
+        reloadApproved();
+      } catch (e) {
+        log("Save failed: " + (e?.message || e));
+      }
+    });
+
+    bind("btnReload", async () => {
+      await reloadApproved();
+    });
+
+    // event delegation for fund buttons
+    const gallery = $("gallery");
+    if (gallery) {
+      gallery.addEventListener("click", (e) => {
+        const target = e.target;
+        if (!(target instanceof HTMLElement)) return;
+        const btn = target.closest("[data-fund]");
+        if (!btn) return;
+        const id = Number(btn.getAttribute("data-fund"));
+        if (!id) return;
+        fundProposal(id);
+      });
+    }
+  });
+</script>
+</body>
+</html>
